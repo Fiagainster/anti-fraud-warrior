@@ -81,18 +81,19 @@ class FZGateData ui
 		switch (id)
 		{
 			case 101: return "【简报】大学生小陈被拉进“闪电赚钱群”，\n动动手指日赚三百？潜入骗局网络空间，\n净化妖魔，收集证据！";
-			case 102: return "【提示】走近闪烁的“数据终端”触发抉择，\n选错会掉警惕值并引来妖魔伏击。";
-			case 103: return "【提示】集齐 3 件证据链才能打开审判门，\n击败幕后主谋才能结案。";
+			case 102: return "【提示】走近闪烁的“数据终端”触发抉择，\n选错会掉警惕值并引来妖魔伏击，\n但走开再回来可以重新作答。";
+			case 103: return "【提示】集齐 3 件证据、并答对两道抉择，\n审判门才会打开；击败幕后主谋才能结案。";
 			case 201: return "【简报】小陈的室友想买 3 折“内部价”皮肤，\n进了黑市交易群。潜入黑市空间，\n揪出暗影商人！";
-			case 202: return "【提示】黑市里诱惑更多，站稳脚跟：\n远离一切脱离平台的交易。";
+			case 202: return "【提示】黑市里诱惑更多，站稳脚跟：\n远离一切脱离平台的交易。\n答错可以走开再回来重答，不会被锁死。";
 			case 203: return "【提示】钓鱼链接最爱伪装“官方活动”，\n任何索要账号密码的活动都是假的。";
 			case 301: return "【简报】“王警官”来电恐吓小陈：\n涉案要判刑！潜入幻影空间，\n拆穿假警察的真面目！";
-			case 302: return "【提示】记住：公检法不会电话办案，\n更没有“安全账户”。";
+			case 302: return "【提示】记住：公检法不会电话办案，\n更没有“安全账户”。\n答错可以走开再回来重答，不会被锁死。";
 			case 303: return "【提示】“案件保密，不许告诉家人”\n是骗子的心虚——告诉家人就是反诈！";
 			case 901: return "获得一件证据碎片！集齐 3 件可开启审判门。";
 			case 902: return "幕后主谋已倒下！拾取掉落的\n【主谋证据】，前往出口结案。";
 			case 903: return "结案！主谋已伏法，前往出口开关。";
 			case 904: return "【证据链完整】审判门已解锁，\n走到红锁门前按 E 进入。";
+			case 905: return "【提示】证据链已齐，但还有抉择没答对——\n回到闪烁终端重新作答，审判门才会开。";
 			case 111: return "【识破】凡是让你先垫资的刷单都是诈骗——\n先给甜头后宰客，垫付的钱有去无回！";
 			case 121: return "【识破】共享屏幕=把银行卡密码拱手送人！\n卡单、解冻、激活全是话术。";
 			case 211: return "【识破】脱离平台私下交易=放弃一切保障，\n转账瞬间对方立刻拉黑跑路。";
@@ -277,7 +278,9 @@ class FZPlayEvents : EventHandler
 	{
 		switch (gid)
 		{
+			// chapter 3's fake police come down harder on a wrong answer
 			case 31: case 32: return 30;
+			case 11: case 12: case 21: case 22: return 25;
 		}
 		return 25;
 	}
@@ -348,6 +351,57 @@ class FZPlayEvents : EventHandler
 		return 'FZStage1';
 	}
 
+	// ----------------------------------------------------------- chapter --
+
+	// Per-chapter state reset.
+	//
+	// A player keeps its whole inventory when travelling to the next map
+	// (that is how Doom hands weapons and keys down), and our tokens ride
+	// along with it. Chapter 2 therefore used to start holding chapter 1's
+	// FZStage1/FZStage2, its 3 evidence pieces and its RedCard, which broke
+	// the flow both ways:
+	//   * FZGateTerminal saw "this gate's stage token is already carried"
+	//     and closed itself without ever showing a menu -> no evidence,
+	//   * the trial door was already unlocked (or, once the evidence count
+	//     was stale at 3 while the card was gone, stayed locked forever
+	//     because the crates refuse to hand out a 4th piece).
+	// Everything chapter-scoped is cleared here, so each map starts from
+	// zero and the door has to be earned again.
+	//
+	// Safe for savegames: the engine skips WorldLoaded for non-static
+	// handlers when restoring a save (src/events.cpp), so a mid-chapter load
+	// keeps the inventory the save was made with.
+	private static void ClearChapterState(Actor mo)
+	{
+		mo.TakeInventory("FZEvidence", 3);
+		mo.TakeInventory("RedCard", 1);
+		mo.TakeInventory("FZStage1", 1);
+		mo.TakeInventory("FZStage2", 1);
+		mo.TakeInventory("FZStage3", 1);
+		mo.TakeInventory("FZGateLock", 1);
+		mo.TakeInventory("FZGateCool", 1);
+		// stale banners must not survive the chapter change either
+		mo.TakeInventory("FZMsg1", 1);
+		mo.TakeInventory("FZMsg2", 1);
+		mo.TakeInventory("FZMsg3", 1);
+	}
+
+	override void WorldLoaded(WorldEvent e)
+	{
+		for (int i = 0; i < MAXPLAYERS; i++)
+		{
+			if (!playeringame[i] || players[i].mo == null) continue;
+			let mo = players[i].mo;
+			ClearChapterState(mo);
+			CVar dbg = CVar.FindCVar("fz_bot");
+			if (dbg != null && dbg.GetInt() == 1)
+				Console.Printf("FZDBG: chapter reset %s ev=%d red=%d st1=%d st2=%d st3=%d",
+					level.mapname, mo.CountInv("FZEvidence"),
+					mo.CountInv("RedCard"), mo.CountInv("FZStage1"),
+					mo.CountInv("FZStage2"), mo.CountInv("FZStage3"));
+		}
+	}
+
 	override void NetworkProcess(ConsoleEvent e)
 	{
 		if (e.Name == 'FZGateChoice') GateChoice(e.Player, e.Args[0], e.Args[1]);
@@ -380,20 +434,27 @@ class FZPlayEvents : EventHandler
 			// Granted last so the "chain complete" banner (904) wins over
 			// the per-choice banner when this happens to be the third piece.
 			FZEvidenceChain.Grant(pl);
-			// mark this gate's terminal done (terminals share tid 3942;
-			// tid 0 is an empty iterator in this engine - never use it)
-			let it = level.CreateActorIterator(3942);
-			for (let a = it.Next(); a != null; a = it.Next())
-			{
-				let g = FZGateTerminal(a);
-				if (g != null && g.GateId() == gid) g.done = true;
-			}
 		}
 		else
 		{
 			pl.DamageMobj(null, null, GateDmg(gid), 'FZFraud');
 			Ambush(pl, gid);
 			FZMsgItemBase.Push(pl, GateMsgWrong(gid), 340);
+		}
+
+		// Per-terminal bookkeeping, both branches: a correct answer retires
+		// the terminal (done), and every answer puts it on cooldown so a
+		// player standing inside it is not force-fed the menu again a tic
+		// later (that used to chain-damage players to death and restart the
+		// chapter). Walk out and back in to retry after mCool ticks.
+		// Terminals share tid 3942; tid 0 is an empty iterator - never use it.
+		let it = level.CreateActorIterator(3942);
+		for (let a = it.Next(); a != null; a = it.Next())
+		{
+			let g = FZGateTerminal(a);
+			if (g == null || g.GateId() != gid) continue;
+			if (choice == GateCorrect(gid)) g.done = true;
+			g.StartCool(FZGateTerminal.CoolTics());
 		}
 	}
 

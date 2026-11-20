@@ -37,6 +37,41 @@ OUT = ROOT / "game/maps"
 IWAD = ROOT / "vendor/freedoom-0.13.0/freedoom1.wad"
 LOCK_RED = 1
 
+# ---------------------------------------------------------------- ednums --
+# Custom gameplay things (must match game/mapinfo/MAPINFO doomednums).
+# One gate class per gate id: vanilla THINGS have no args field, so the id
+# has to be baked into the class. `3920 + (gate - 11)` looked obvious and
+# was wrong: it produced 3930/3931 for chapter 2 (evidence crate + master
+# proof) and 3940/3941 for chapter 3 (unregistered, so the engine silently
+# dropped both terminals - no choice menu, no evidence, trial door shut).
+GATE_EDNUM = {11: 3920, 12: 3921, 21: 3922, 22: 3923, 31: 3924, 32: 3925}
+ED_EVIDENCE = 3930
+ED_PROOF = 3931
+ED_BRIEF = 3932
+
+# Engine ednums we place. Keep names explicit: 4 is "player 4 start" and 8
+# is "Backpack", both of which load without a single warning and quietly
+# leave the arena empty (a backpack even looks like our evidence crate).
+ZOMBIE = 3004
+SHOTGUNNER = 9
+IMP = 3001
+DEMON = 3002
+BARON = 3003
+CACO = 3005
+STIMPACK = 2011
+SHOTGUN = 2001
+SHELLS = 2008
+PLAYER1_START = 1
+
+MONSTER_SET = {ZOMBIE, SHOTGUNNER, IMP, DEMON, BARON, CACO}
+
+# ednums that must never show up as a monster: multi-player starts and the
+# backpack (it is also the placeholder sprite of FZEvidencePickup).
+FORBIDDEN_EDNUM = {2: "player 2 start", 3: "player 3 start",
+                   4: "player 4 start", 8: "Backpack",
+                   11: "deathmatch start 1", 12: "deathmatch start 2",
+                   13: "deathmatch start 3", 14: "deathmatch start 4"}
+
 
 def pad8(s):
     return s.encode("ascii")[:8].ljust(8, b"\0")
@@ -335,19 +370,19 @@ def build_chapter(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     sd = m.side(nook, "SW1EXIT")
     m.line(3328, 320, 3328, 192, front=sd, blocking=True, special=11)
 
-    m.thing(128, 256, 1, angle=0)
-    m.thing(256, 256, 3932)  # briefing streamer
+    m.thing(128, 256, PLAYER1_START, angle=0)
+    m.thing(256, 256, ED_BRIEF)  # briefing streamer
     # gate terminals: one class per gate (vanilla things have no args)
-    m.thing(640, 480, 3920 + (gate_a - 11))
-    m.thing(1600, 496, 3920 + (gate_b - 11))
+    m.thing(640, 480, GATE_EDNUM[gate_a])
+    m.thing(1600, 496, GATE_EDNUM[gate_b])
 
     for evx in (896, 1088, 1280):
-        m.thing(evx, -128, 3930)
-        m.thing(evx, -176, 2011)
+        m.thing(evx, -128, ED_EVIDENCE)
+        m.thing(evx, -176, STIMPACK)
 
-    m.thing(768, 256, 2001)
-    m.thing(832, 192, 2008)
-    m.thing(832, 320, 2008)
+    m.thing(768, 256, SHOTGUN)
+    m.thing(832, 192, SHELLS)
+    m.thing(832, 320, SHELLS)
     m.thing(736, -16, 2012)
     m.thing(736, 528, 2012)
     m.thing(1728, 256, 2002)
@@ -363,7 +398,7 @@ def build_chapter(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
         m.thing(896 + (i % 3) * 192, 32 + (i // 3) * 320, t, angle=180)
     for i, t in enumerate(enemies2):
         m.thing(1856 + (i % 3) * 160, 32 + (i // 3) * 320, t, angle=180)
-    m.thing(2880, 256, 3003, angle=180)
+    m.thing(2880, 256, BARON, angle=180)
     for i, t in enumerate(boss_adds):
         m.thing(2560, 64 + i * 192, t, angle=180)
     return m
@@ -373,25 +408,75 @@ CHAPTERS = [
     dict(name="FZ01",
          palette=dict(wall="STARTAN2", cwall="COMPSPAN", floor="FLOOR4_8",
                       ceil="CEIL1_2"),
-         enemies1=[4, 4, 4, 3001, 3001],
-         enemies2=[9, 9, 3001, 3001],
-         boss_adds=[3001, 3001],
+         enemies1=[ZOMBIE, ZOMBIE, ZOMBIE, IMP, IMP],
+         enemies2=[SHOTGUNNER, SHOTGUNNER, IMP, IMP],
+         boss_adds=[IMP, IMP],
          gate_a=11, gate_b=12),
     dict(name="FZ02",
          palette=dict(wall="GRAY5", cwall="METAL1", floor="FLOOR5_3",
                       ceil="CEIL5_1"),
-         enemies1=[9, 9, 8, 8, 4],
-         enemies2=[9, 9, 9, 8, 8, 8],
-         boss_adds=[3005],
+         enemies1=[SHOTGUNNER, SHOTGUNNER, DEMON, DEMON, ZOMBIE],
+         enemies2=[SHOTGUNNER, SHOTGUNNER, SHOTGUNNER, DEMON, DEMON, DEMON],
+         boss_adds=[CACO],
          gate_a=21, gate_b=22),
     dict(name="FZ03",
          palette=dict(wall="BROWN1", cwall="STONE2", floor="FLOOR0_3",
                       ceil="CEIL3_1"),
-         enemies1=[9, 3001, 3001, 3001, 4],
-         enemies2=[3005, 3005, 3002, 3002, 9],
-         boss_adds=[3005, 3005],
+         enemies1=[SHOTGUNNER, IMP, IMP, IMP, ZOMBIE],
+         enemies2=[CACO, CACO, DEMON, DEMON, SHOTGUNNER],
+         boss_adds=[CACO, CACO],
          gate_a=31, gate_b=32),
 ]
+
+
+def check_things(ch, m):
+    """Fail the build when a chapter's thing list would break the flow.
+
+    Every one of these has already happened once and each one fails
+    silently in game, so they are asserted at generation time."""
+    types = [t[3] for t in m.things]
+    problems = []
+
+    def count(t):
+        return types.count(t)
+
+    for gid in (ch["gate_a"], ch["gate_b"]):
+        if gid not in GATE_EDNUM:
+            problems.append("gate id %d has no ednum" % gid)
+            continue
+        if count(GATE_EDNUM[gid]) != 1:
+            problems.append("gate %d (ednum %d) placed %d times"
+                            % (gid, GATE_EDNUM[gid], count(GATE_EDNUM[gid])))
+    if ch["gate_a"] == ch["gate_b"]:
+        problems.append("chapter reuses gate id %d" % ch["gate_a"])
+    if count(PLAYER1_START) != 1:
+        problems.append("player 1 starts: %d" % count(PLAYER1_START))
+    if count(ED_BRIEF) != 1:
+        problems.append("briefing actors: %d" % count(ED_BRIEF))
+    if count(ED_EVIDENCE) != 3:
+        problems.append("evidence crates: %d (want 3, one per alcove)"
+                        % count(ED_EVIDENCE))
+    if count(BARON) != 1:
+        problems.append("chapter bosses: %d (want exactly 1 baron)"
+                        % count(BARON))
+    for bad, what in FORBIDDEN_EDNUM.items():
+        if count(bad):
+            problems.append("ednum %d (%s) placed %d times"
+                            % (bad, what, count(bad)))
+    gate_ednums = set(GATE_EDNUM.values())
+    for group in ("enemies1", "enemies2", "boss_adds"):
+        for t in ch[group]:
+            if t not in MONSTER_SET:
+                problems.append("%s has ednum %d, which is not a monster"
+                                % (group, t))
+    # a gate terminal must not share an ednum with anything else
+    for t in types:
+        if t in gate_ednums and t not in (GATE_EDNUM[ch["gate_a"]],
+                                          GATE_EDNUM[ch["gate_b"]]):
+            problems.append("stray gate ednum %d in %s" % (t, ch["name"]))
+    if problems:
+        raise SystemExit("%s: %s" % (ch["name"], "; ".join(sorted(set(problems)))))
+
 
 
 def validate(built):
@@ -415,11 +500,13 @@ def main():
     built = {}
     for ch in CHAPTERS:
         m = build_chapter(**{k: v for k, v in ch.items() if k != "name"})
+        check_things(ch, m)
         path = OUT / (ch["name"] + ".wad")
         path.write_bytes(m.wad_bytes(ch["name"]))
         built[ch["name"]] = m
         print(path, "sectors", len(m.sectors), "lines", len(m.lines),
-              "things", len(m.things))
+              "things", len(m.things),
+              "gates", GATE_EDNUM[ch["gate_a"]], GATE_EDNUM[ch["gate_b"]])
     validate(built)
 
 
