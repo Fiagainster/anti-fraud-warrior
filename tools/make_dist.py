@@ -43,7 +43,11 @@ if not exist "uzdoom.exe" goto missing
 if not exist "freedoom1.wad" goto missing
 if not exist "fanzha-demo.pk3" goto missing
 
-start "" "uzdoom.exe" -config "uzdoom.cfg" -iwad "freedoom1.wad" ^
+rem uzdoom.cfg is a read-only template. The engine rewrites the file it is
+rem handed via -config, so play on a copy - delete fz-settings.cfg to reset.
+if not exist "fz-settings.cfg" copy "uzdoom.cfg" "fz-settings.cfg" >nul
+
+start "" "uzdoom.exe" -config "fz-settings.cfg" -iwad "freedoom1.wad" ^
  -file "maps\\FZ01.wad" -file "maps\\FZ02.wad" -file "maps\\FZ03.wad" ^
  -file "fanzha-demo.pk3" ^
  +set vid_fullscreen 0 +set vid_defwidth 1280 +set vid_defheight 720 ^
@@ -81,12 +85,13 @@ ESC            打开主菜单（注意：需要按住约 2 秒）
 走近发光的「数据终端」会自动弹出抉择菜单（↑↓ 选择，回车确认）。
 - 选对：防骗盾 +10、证据 +1，获得关卡进度
 - 选错：警惕值 -25，并会引来妖魔伏击
-竞技场北侧三个小房间各有 1 件证据，集齐 3 件获得「证据链」（红卡）。
-红卡门后是本章 Boss；击败后拾取主谋证据，到出口开关（E）结案。
-三章：刷单深渊 / 装备黑市 / 警服幻影，每章结束有案件卷宗结算页。
+竞技场北侧三个小房间各有 1 件证据，集齐 3 件才算证据链完整（HUD 右下出现
+红字「红卡」），红卡门后是本章 Boss；击败后拾取主谋证据，走进出口小间即结案。
+三章：刷单深渊 / 装备黑市 / 警服幻影，每章结束是引擎标准结算页（回车进下一章）。
 
 提示：游戏内按 F1 可看物品帮助；如遇启动崩溃，删除
 %LOCALAPPDATA%\\doom\\uzdoom\\vulkanpipelinecache 后重试。
+按键/画面设置想恢复默认：删掉 fz-settings.cfg 再启动（uzdoom.cfg 是模板）。
 
 内容说明
 --------
