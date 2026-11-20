@@ -24,8 +24,8 @@ python tools\fz_ctl.py tour     # 第一章自动化回归（预期 9/9）
 
 | 角色 | 手册 | 你主要交付什么 |
 |---|---|---|
-| 美术 / 3D | [角色-美术.md](角色-美术.md) | 敌人 8 方向 sprite、武器/道具、场景贴图、UI 图 |
-| 关卡 / 地图 | [角色-地图.md](角色-地图.md) | 地图生成器参数或手工 WAD、房间节奏与动线 |
+| 美术 | [角色-美术.md](角色-美术.md) | 手工像素画（Pixelorama）为主：道具图标、UI、贴图；敌人 8 方向 sprite 走 Blender |
+| 关卡 / 地图 | [角色-地图.md](角色-地图.md) | 地图生成器参数（当前）；手工 WAD 仅新开章时用 |
 | 程序 | [角色-程序.md](角色-程序.md) | ZScript 系统、HUD、菜单、工具链 |
 | 剧情 / 文案 | [角色-剧情文案.md](角色-剧情文案.md) | 章节剧情、抉择文案、识破知识点、卷宗 |
 | 音频 | [角色-音频.md](角色-音频.md) | 音效、BGM、配音 |
@@ -43,7 +43,7 @@ python tools\fz_ctl.py tour     # 第一章自动化回归（预期 9/9）
 ```
 引擎/底座   vendor/      UZDoom + Freedoom + 字体（不入库，按清单导入）
 内容源码    game/        ZScript / MAPINFO / 语言表 / 字体图集 / 图形
-源素材      assets_src/  Blender、贴图源文件、音频源文件（LFS）
+源素材      assets_src/  Pixelorama / Blender 源文件、贴图源、音频源（LFS）
 工具链      tools/       地图生成、字体生成、打包、测试、发布
 文档        docs/        方案、剧情、验收、协作手册
 产物        build/ dist/ 构建与交付（不入库）

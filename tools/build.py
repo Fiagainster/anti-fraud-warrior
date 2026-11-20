@@ -7,6 +7,8 @@ Contents:
     zscript/*.zs
     fonts/fzfont*/...
     graphics/*.png        (HUD panel + Chinese main-menu patches)
+    sprites/*.png         (sprite lumps, e.g. FZTRA0.png for "FZTR A")
+    sounds/*              (sound lumps)
 
 `game/menudef/` is intentionally not packed: the main menu is localized by
 overriding the stock M_* patches, not by replacing MENUDEF.
@@ -83,8 +85,11 @@ def main() -> None:
         z.write(GAME / "zscript.txt", "zscript.txt")
         if (GAME / "language" / "language.txt").exists():
             z.write(GAME / "language" / "language.txt", "LANGUAGE")
-        for sub in ("zscript", "fonts", "graphics"):
-            for p in sorted((GAME / sub).rglob("*")):
+        for sub in ("zscript", "fonts", "graphics", "sprites", "sounds"):
+            d = GAME / sub
+            if not d.is_dir():
+                continue
+            for p in sorted(d.rglob("*")):
                 if p.is_file():
                     z.write(p, str(p.relative_to(GAME)).replace("\\", "/"))
 
