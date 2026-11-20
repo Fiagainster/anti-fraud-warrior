@@ -66,10 +66,20 @@ def load_manifest() -> dict:
     return json.loads(MANIFEST.read_text(encoding="utf-8"))
 
 
-def cmd_status() -> int:
+def cmd_status(only: set[str] | None = None) -> int:
+    """Verify vendor files against the manifest.
+
+    `only` restricts the check to specific manifest paths - used by import,
+    so importing just the IWAD (as CI does) verifies that file instead of
+    failing on the gitignored engine binaries.
+    """
     man = load_manifest()
     bad = 0
+    checked = 0
     for item in man["files"]:
+        if only is not None and item["path"] not in only:
+            continue
+        checked += 1
         p = ROOT / item["path"]
         if not p.exists():
             print(f"MISSING  {item['path']}  ({item['desc']})")
@@ -81,6 +91,12 @@ def cmd_status() -> int:
             bad += 1
         else:
             print(f"OK       {item['path']}")
+    if only is not None:
+        if bad:
+            print(f"\n{bad} of {checked} imported file(s) failed verification")
+            return 1
+        print(f"\n{checked} imported file(s) verified")
+        return 0
     print()
     for key, src in man["sources"].items():
         print(f"source {key}: {src['pin']}  <{src['homepage']}>")
@@ -160,13 +176,19 @@ def _copy_font(src: Path) -> None:
 def cmd_import(args) -> int:
     if not (args.uzdoom or args.freedoom or args.font):
         raise SystemExit("nothing to import; pass --uzdoom/--freedoom/--font")
+    imported: list[str] = []
     if args.uzdoom:
         _copy_engine(Path(args.uzdoom))
+        imported += [f"vendor/uzdoom-5.0.3/{n}" for n in ENGINE_FILES]
     if args.freedoom:
         _copy_iwad(Path(args.freedoom))
+        imported.append("vendor/freedoom-0.13.0/freedoom1.wad")
     if args.font:
         _copy_font(Path(args.font))
-    return cmd_status()
+        imported.append(f"vendor/fusion-pixel-2026.11.10/{FONT_NAME}")
+    # Verify only this run's files: a CI job that fetches just the IWAD must
+    # not fail because the (gitignored) engine binaries are absent.
+    return cmd_status(only=set(imported))
 
 
 def main() -> int:
