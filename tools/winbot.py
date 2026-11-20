@@ -23,7 +23,10 @@ import time
 from ctypes import wintypes as wt
 from pathlib import Path
 
-from PIL import Image
+# Pillow is imported inside capture() on purpose: the compile-only preflight
+# (fz_ctl check) imports this module but never takes a screenshot, so a box
+# without Pillow can still run the build gate. Same for type hints - the
+# `from __future__ import annotations` above keeps them unevaluated.
 
 # DPI awareness: without this GetClientRect is virtualized and captures
 # come back cropped (the status bar falls off the bottom).
@@ -262,6 +265,12 @@ def _client_size(hwnd: int) -> tuple[int, int, int, int]:
 
 
 def capture(hwnd: int, path: Path) -> Path:
+    try:
+        from PIL import Image
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError(
+            "Pillow is required for screenshots: python -m pip install pillow"
+        ) from exc
     focus(hwnd)
     cw, ch, sx, sy = _client_size(hwnd)
     if cw <= 0 or ch <= 0:
