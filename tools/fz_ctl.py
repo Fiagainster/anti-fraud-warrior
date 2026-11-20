@@ -62,6 +62,10 @@ crosshair=1
 # ---------------------------------------------------------------- build --
 
 def build_all() -> None:
+    # STAGE must exist before anything is written into it: a fresh clone has
+    # no _staging/ at all, and packaging the bot PK3 used to fail with
+    # FileNotFoundError before stage() got a chance to mkdir.
+    STAGE.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, "-I", str(ROOT / "tools/build.py")],
                    check=True)
     with zipfile.ZipFile(BOT_PK3, "w", zipfile.ZIP_DEFLATED) as z:
@@ -147,7 +151,7 @@ def _provision_engine() -> None:
 
 
 def stage() -> None:
-    STAGE.mkdir(exist_ok=True)
+    STAGE.mkdir(parents=True, exist_ok=True)
     _provision_engine()
     (STAGE / "fanzha-demo.pk3").write_bytes(
         (ROOT / "build/fanzha-demo.pk3").read_bytes())

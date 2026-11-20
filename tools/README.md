@@ -10,7 +10,8 @@
 | `build.py` | 打包 `game/` → `build/fanzha-demo.pk3`；缺地图/字体会自动生成 |
 | `make_dist.py` | 出交付包 `dist/fanzha-demo-v0.1{.zip,/}`（会先重跑地图与打包） |
 | `doctor.py` | 环境自检：Python/Pillow/vendor/配置绑定/内容文件，缺什么给什么命令 |
-| `fetch_vendor.py` | `status` 校验 vendor 完整性；`import` 从本地官方文件导入引擎/IWAD/字体 |
+| `fetch_vendor.py` | `status` 校验 vendor 完整性；`import` 从本地官方文件导入引擎/IWAD/字体（只校验本次导入项） |
+| `publish_api.py` | 备用发布通道：`github.com` 直连不通、但 `api.github.com` 可达时，用 `gh api` 逐 blob 上传当前 HEAD |
 
 ## 内容生成（源即生成器，产物不入库）
 
