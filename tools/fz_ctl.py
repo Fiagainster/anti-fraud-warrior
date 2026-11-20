@@ -187,7 +187,19 @@ def preflight() -> None:
     except subprocess.TimeoutExpired:
         print("FAIL preflight timed out")
         sys.exit(2)
-    txt = PRELOG.read_text(encoding="utf-8", errors="replace") if PRELOG.exists() else ""
+
+    # -errorlog does not reliably produce a file here (same 5.0.3 quirk as
+    # -logfile), and the engine prints parse errors on STDOUT instead. The
+    # old code only read PRELOG, so a missing file read as "clean" and this
+    # gate passed every script - including broken ones. Scan all channels.
+    chunks = []
+    if PRELOG.exists():
+        chunks.append(PRELOG.read_text(encoding="utf-8", errors="replace"))
+    for stream in (proc.stdout, proc.stderr):
+        if stream:
+            chunks.append(stream.decode("utf-8", "replace"))
+    txt = "\n".join(chunks)
+
     bad = [l for l in txt.splitlines() if any(k in l for k in FATAL_MARKERS)]
     if bad:
         print("FAIL preflight: script/MAPINFO errors:")
@@ -195,22 +207,54 @@ def preflight() -> None:
             print("  " + l.strip())
         sys.exit(2)
     if proc.returncode not in (0, 1337):
-        print(f"WARN preflight exit code {proc.returncode}")
+        print(f"FAIL preflight: exit code {proc.returncode} "
+              "(1337 = batchrun finished, so the engine died before compiling)")
+        sys.exit(2)
+    if not any(l.startswith("adding ") for l in txt.splitlines()):
+        print("FAIL preflight: engine never loaded the PK3s - nothing was compiled")
+        sys.exit(2)
     print("PASS preflight: scripts compiled clean")
 
 
 # --------------------------------------------------------------- launch --
 
+def kill_stage_instances() -> int:
+    """Kill only the uzdoom processes THIS harness started.
+
+    A blanket `taskkill /IM uzdoom.exe` also takes down the player's own
+    game, which the README explicitly promises never happens. Match on the
+    executable path instead - `_staging/fztest/uzdoom.exe` is unique to us.
+    """
+    target = str(EXE).replace("'", "''")
+    script = (
+        "Get-Process uzdoom -ErrorAction SilentlyContinue | "
+        f"Where-Object {{ $_.Path -eq '{target}' }} | "
+        "ForEach-Object { $_.Id }"
+    )
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return 0
+    pids = [int(x) for x in r.stdout.split() if x.strip().isdigit()]
+    for pid in pids:
+        subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                       capture_output=True, timeout=30)
+    return len(pids)
+
+
 def clean() -> None:
-    subprocess.run(["taskkill", "/F", "/IM", "uzdoom.exe"], capture_output=True)
-    time.sleep(1.0)
+    killed = kill_stage_instances()
+    if killed:
+        print(f"  cleaned {killed} leftover staging instance(s)")
+    time.sleep(0.6)
+    # The Vulkan pipeline cache is shared by every UZDoom install on this
+    # machine, so we never delete it behind the user's back - just point at
+    # it when a run dies (deleting it is the documented cure for AVs).
     cache = Path.home() / "AppData/Local/doom/uzdoom/vulkanpipelinecache"
-    if cache.exists():
-        for p in cache.glob("*"):
-            try:
-                p.unlink()
-            except OSError:
-                pass
+    if cache.exists() and any(cache.glob("*")):
+        print(f"  note: on random crashes delete {cache}")
     if SHOTS.exists():
         for p in SHOTS.iterdir():
             try:
@@ -472,6 +516,10 @@ SCENARIOS = {
                         fire=True, extra=["+set", "fz_autoanswer", "1"])),
 }
 
+# Scenarios that arm the in-engine route bot, and are therefore expected to
+# print "FZBOT: route armed". boot/esc drive the stock menus instead.
+BOT_SCENARIOS = ("tour", "gate", "menu", "door", "exit", "full")
+
 
 # ----------------------------------------------------------------- main --
 
@@ -562,7 +610,10 @@ def report(scenario: str, driver_ok: bool = True) -> int:
     check("log captured", bool(txt.strip()), f"bytes={len(txt)}")
     check("no script errors",
           not any(k in txt for k in FATAL_MARKERS))
-    check("bot armed", "FZBOT: route armed" in txt)
+    # boot/esc drive the stock menus without the route bot, so asserting
+    # "bot armed" there would fail by construction.
+    if scenario in BOT_SCENARIOS:
+        check("bot armed", "FZBOT: route armed" in txt)
     if spawns:
         for l in spawns[:3]:
             print("  spawn probe: " + l)
