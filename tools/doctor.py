@@ -15,6 +15,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+# This script prints Chinese on every machine, including English Windows and
+# CI runners whose console encoding is cp1252 - without this the first line
+# raises UnicodeEncodeError before any check even runs.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parents[1]
 CFG = ROOT / "config" / "uzdoom.cfg"
 

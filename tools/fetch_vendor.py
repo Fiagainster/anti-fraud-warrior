@@ -28,6 +28,15 @@ import sys
 import zipfile
 from pathlib import Path
 
+# Manifest descriptions are Chinese, but English Windows consoles (and the
+# GitHub Actions runner) default to cp1252, where printing them raises
+# UnicodeEncodeError and turns a status check into a crash. Force UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parents[1]
 VENDOR = ROOT / "vendor"
 MANIFEST = VENDOR / "manifest.json"
