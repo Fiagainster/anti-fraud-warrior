@@ -27,7 +27,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGE = ROOT / "D__fztest"  # placeholder, real staging lives on D:\fztest
+STAGE = ROOT / "_staging" / "fztest"
 EXE = STAGE / "uzdoom.exe"
 IWAD = STAGE / "freedoom1.wad"
 STAGE_DIR = STAGE
