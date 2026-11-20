@@ -1,0 +1,20 @@
+[default]
+
+GOTSTIMPACK = "拾取了警惕能量饮料！";
+GOTMEDIKIT = "拾取了防骗急救包！";
+GOTSHELLS = "拾取了一盒话术弹！";
+GOTSHOTGUN = "拾取了【反诈喇叭】！";
+GOTCLIP = "拾取了一盒【线索】！";
+GOTCHAINGUN = "拾取了【连环举报】！";
+GOTARMOR = "拾取了【防骗盾】！";
+GOTMEGASPHERE = "超级防骗盾！";
+
+GOTREDCARD = "拾取了【证据链】！审判门已解锁！";
+GOTBLUECARD = "拾取了【数据密钥】！";
+PD_REDC = "这扇审判门需要 3 件证据链才能打开！";
+PD_BLUEO = "需要【数据密钥】！";
+
+GOTBACKPACK = "拾取了【举报工具包】！举报能量上限提升！";
+
+GGOTARMOR = "防骗盾已强化！";
+GOTSUPER = "超级警惕！";

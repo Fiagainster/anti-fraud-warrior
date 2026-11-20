@@ -1,0 +1,5 @@
+// Test-only automation hook: route bot + console probes.
+gameinfo
+{
+	addeventhandlers = "FZBotEvents"
+}

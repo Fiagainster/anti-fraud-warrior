@@ -1,0 +1,67 @@
+{
+  "note": "大型二进制不入库。用 python tools/fetch_vendor.py import 从本地官方下载文件导入；status 校验完整性。",
+  "sources": {
+    "uzdoom": {
+      "homepage": "https://github.com/UZDoom/UZDoom/releases",
+      "pin": "5.0.3 (Win32)"
+    },
+    "freedoom": {
+      "homepage": "https://freedoom.github.io/",
+      "pin": "0.13.0"
+    },
+    "fusion_pixel": {
+      "homepage": "https://github.com/TakWolf/fusion-pixel-font/",
+      "pin": "2026.11.10"
+    }
+  },
+  "files": [
+    {
+      "path": "vendor/uzdoom-5.0.3/uzdoom.exe",
+      "desc": "UZDoom 5.0.3 Windows 可执行文件",
+      "sha256": "e6df57d1027cee089d33388ab743817a236148992ac3881d9141ea2b547677d9",
+      "size": 17872896
+    },
+    {
+      "path": "vendor/uzdoom-5.0.3/uzdoom.pk3",
+      "desc": "引擎核心 PK3",
+      "sha256": "b8f1993f71c7d027e66ebbdfe06ff41d59c65fe09a5d6e87e7163c3a385f1a16",
+      "size": 7159816
+    },
+    {
+      "path": "vendor/uzdoom-5.0.3/game_support.pk3",
+      "desc": "引擎支持资源",
+      "sha256": "2bac103c8d67bb1341c88c31bf3512b879d2cf0233372583081375b72240ccb3",
+      "size": 2918075
+    },
+    {
+      "path": "vendor/uzdoom-5.0.3/lights.pk3",
+      "desc": "动态灯光",
+      "sha256": "21bede428dc8a691accbd358b80ed2174a7b2e6fe3860f119730f4b4da411ffb",
+      "size": 23637
+    },
+    {
+      "path": "vendor/uzdoom-5.0.3/brightmaps.pk3",
+      "desc": "高光贴图",
+      "sha256": "9d718b748eb11c3b8af94bca520a53c7da636d78d6ebe1c22ab4e8f6c21e7766",
+      "size": 246507
+    },
+    {
+      "path": "vendor/uzdoom-5.0.3/game_widescreen_gfx.pk3",
+      "desc": "宽屏素材",
+      "sha256": "d40b97fa4a349fc0ccd4baa92d55dc2a4ef5090f30e7dc877d3167b0d4fc7c8a",
+      "size": 5565904
+    },
+    {
+      "path": "vendor/freedoom-0.13.0/freedoom1.wad",
+      "desc": "Freedoom Phase 1 IWAD",
+      "sha256": "7323bcc168c5a45ff10749b339960e98314740a734c30d4b9f3337001f9e703d",
+      "size": 28795076
+    },
+    {
+      "path": "vendor/fusion-pixel-2026.11.10/fusion-pixel-12px-proportional-zh_hans.ttf",
+      "desc": "Fusion Pixel 字体",
+      "sha256": "7e93fedda2c55bb37badb2262aaf43b08e3cb5976a0e3de2d90986ce59fe902e",
+      "size": 7316996
+    }
+  ]
+}

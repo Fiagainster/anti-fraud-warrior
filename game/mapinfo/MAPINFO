@@ -1,0 +1,28 @@
+// 反诈战士 · MAPINFO
+gameinfo
+{
+	statusbarclass = "FZStatusBar"
+	eventhandlers = "FZPlayEvents"
+}
+
+doomednums
+{
+	3920 = FZGate11
+	3921 = FZGate12
+	3922 = FZGate21
+	3923 = FZGate22
+	3924 = FZGate31
+	3925 = FZGate32
+	3930 = FZEvidencePickup
+	3931 = FZMasterProof
+	3932 = FZBriefingActor
+}
+
+clearepisodes
+episode FZ01 { name = "反诈战士：净网行动" }
+
+// Standard Doom flow: exit switch -> intermission (stats) -> Enter -> next
+// map. FZ03 has no Next, so the run ends with the engine's end sequence.
+map FZ01 "第一章：刷单深渊" { Next = "FZ02" Sky1 = "SKY1" Music = "$MUSIC_E1M1" }
+map FZ02 "第二章：装备黑市" { Next = "FZ03" Sky1 = "SKY1" Music = "$MUSIC_E1M2" }
+map FZ03 "第三章：警服幻影" { Sky1 = "SKY1" Music = "$MUSIC_E1M3" }

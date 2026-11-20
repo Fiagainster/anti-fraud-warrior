@@ -1,0 +1,29 @@
+# 构建产物（`python tools/build.py` / `tools/fz_ctl.py` 生成）
+/build/
+/dist/
+
+# 大型二进制与参考资料不入库（见 vendor/manifest.json 与 docs/协作/资源与命名规范.md）
+/vendor/*
+!/vendor/manifest.json
+/source/
+
+# 地图 WAD 由 tools/gen_maps.py 生成，源码是生成器本身
+/game/maps/*.wad
+# 字体图集由 tools/gen_font.py 从源码字符串自动生成
+/game/fonts/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 测试暂存 / 截图
+/D__fztest/
+*.log
+
+# 编辑器与系统
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini

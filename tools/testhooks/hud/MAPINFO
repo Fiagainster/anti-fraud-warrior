@@ -1,0 +1,7 @@
+// Test-only additions for Run A.
+gameinfo
+{
+	statusbarclass = "FZStatusBar"
+	addeventhandlers = "FZSmokeHUDHandler"
+	addeventhandlers = "FZWalkTestHandler"
+}

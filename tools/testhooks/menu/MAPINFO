@@ -1,0 +1,6 @@
+// Test-only additions for Run B.
+gameinfo
+{
+	statusbarclass = "FZStatusBar"
+	addeventhandlers = "FZSmokeMenuHandler"
+}
