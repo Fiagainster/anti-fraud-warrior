@@ -194,11 +194,18 @@ def focus(hwnd: int) -> bool:
 KEYEVENTF_SCANCODE = 0x0008
 
 
-def _send_key(vk: int, up: bool = False) -> int:
+def _send_key(vk: int, up: bool = False, scan: int | None = None) -> int:
     """Send a key as a hardware scan code. Raw-input backends (SDL) can
     drop synthetic VK events for some keys (Escape was the notorious one);
-    scancode injection goes through the same path as a real keyboard."""
-    scan = user32.MapVirtualKeyW(vk, 0) & 0xFF
+    scancode injection goes through the same path as a real keyboard.
+
+    `scan` overrides the VK->scancode lookup. Needed for VK_OEM_3 (`` ` ``,
+    the console key): MapVirtualKeyW happily returns a code, but on some
+    layouts the resulting event never reaches SDL as SDL_SCANCODE_GRAVE,
+    so the console silently refuses to open. 0x29 is the physical key.
+    """
+    if scan is None:
+        scan = user32.MapVirtualKeyW(vk, 0) & 0xFF
     flags = KEYEVENTF_SCANCODE | (KEYEVENTF_KEYUP if up else 0)
     inp = INPUT()
     inp.type = INPUT_KEYBOARD
@@ -207,11 +214,15 @@ def _send_key(vk: int, up: bool = False) -> int:
     return user32.SendInput(1, arr, ctypes.sizeof(INPUT))
 
 
+SCAN = {"grave": 0x29}
+
+
 def tap(name: str, hold: float = 0.08) -> int:
     vk = VK[name.lower()]
-    n1 = _send_key(vk)
+    scan = SCAN.get(name.lower())
+    n1 = _send_key(vk, scan=scan)
     time.sleep(hold)
-    n2 = _send_key(vk, up=True)
+    n2 = _send_key(vk, up=True, scan=scan)
     return min(n1, n2)
 
 

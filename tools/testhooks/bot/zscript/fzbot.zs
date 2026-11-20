@@ -21,6 +21,14 @@ class FZBotEvents : EventHandler
 	double lastY;
 	bool armed;
 	bool routeDone;
+	bool bossKilled;
+	// sidestep burst: a monster standing in a 64-unit doorway blocks the
+	// straight line for ever (the bot has no path finder), so after a stuck
+	// report it walks diagonally for a moment and slips past.
+	int sideTicks;
+	double sideDir;
+	int stuckSameWp;
+	int stuckWpIdx;
 
 	// ---- route waypoints (identical layout in all three chapters) ------
 	// 0 spawn, 1 brief east, 2 corridor, 3 gateA terminal touch, 4 back,
@@ -80,6 +88,14 @@ class FZBotEvents : EventHandler
 		wp = 0;
 		stuckTicks = 0;
 		armed = true;
+		bossKilled = false;
+		stuckSameWp = 0;
+		stuckWpIdx = -1;
+		sideTicks = 0;
+		retries = 0;
+		// a level restart (death without a save) re-arms the route, so the
+		// one-shot markers must be cleared or later chapters stay silent
+		routeDone = false;
 		lastX = -1e9;
 		lastY = -1e9;
 		Console.Printf("FZBOT: route armed on %s", level.mapname);
@@ -144,8 +160,47 @@ class FZBotEvents : EventHandler
 		// test seam: the bot must not die mid-route (real players dodge)
 		if (pl.health < 100) pl.health = 100;
 
+		// test seam: real invulnerability for the chapters that run WITH
+		// monsters. Clamping health only survives chip damage - a point
+		// blank shotgun blast (7 pellets) or a baron swipe still takes the
+		// bot from 100 to dead in one tic, which restarts the chapter and
+		// throws the waypoint bookkeeping away. Refreshed every second so
+		// the 30 s powerup can never lapse.
+		CVar god = CVar.FindCVar("fz_bot_god");
+		if (god != null && god.GetInt() == 1 && (wticks % 35) == 0)
+			pl.GiveInventory("PowerInvulnerable", 1);
+
+		// test seam: keep the guns fed. The map economy is two shell boxes
+		// for the whole chapter; firing non-stop at every blocker empties it
+		// half way and the bot then welds itself to a monster standing in a
+		// 64 unit doorway (it cannot kill what it cannot shoot, and it has
+		// no path finder to walk around). Topped up once a second.
+		CVar am = CVar.FindCVar("fz_bot_ammo");
+		if (am != null && am.GetInt() == 1 && (wticks % 35) == 0)
+		{
+			pl.GiveInventory("Shell", 24);
+			pl.GiveInventory("Clip", 40);
+		}
+
 		CVar combat = CVar.FindCVar("fz_bot_combat");
 		if (combat != null && combat.GetInt() == 1) BotCombat(pl);
+
+		// test seam: drop the chapter boss as soon as the bot is inside the
+		// boss room, so WorldThingDied -> FZMasterProof -> FZStage3 gets
+		// exercised deterministically. This is the same damage path a player
+		// shotgun would take (no console command, no aim dependence).
+		CVar kb = CVar.FindCVar("fz_bot_killboss");
+		if (kb != null && kb.GetInt() == 1 && !bossKilled && wp >= 23)
+		{
+			ThinkerIterator bi = ThinkerIterator.Create('BaronOfHell');
+			for (let b = Actor(bi.Next()); b != null; b = Actor(bi.Next()))
+			{
+				if (b.health <= 0) continue;
+				b.DamageMobj(b, pl, 100000, 'Normal');
+				bossKilled = true;
+				Console.Printf("FZBOT: boss downed at (%.0f, %.0f)", b.Pos.X, b.Pos.Y);
+			}
+		}
 
 		int stopWp = -1;
 		CVar sc = CVar.FindCVar("fz_bot_stop");
@@ -176,9 +231,15 @@ class FZBotEvents : EventHandler
 		int lim = (t != null && t.GetInt() > 0) ? t.GetInt() * 35 : 150 * 35;
 		if (wticks > lim)
 		{
-			routeDone = true;
-			Console.Printf("FZBOT: TIMEOUT at (%.0f, %.0f) wp=%d", pl.Pos.X, pl.Pos.Y, wp);
-			LevelLocals.MakeScreenShot();
+			// one shot only: this branch is reached on every following tic,
+			// and MakeScreenShot() per tic produced hundreds of truncated
+			// (unreadable) PNGs.
+			if (!routeDone)
+			{
+				routeDone = true;
+				Console.Printf("FZBOT: TIMEOUT at (%.0f, %.0f) wp=%d", pl.Pos.X, pl.Pos.Y, wp);
+				LevelLocals.MakeScreenShot();
+			}
 			return;
 		}
 
@@ -187,19 +248,44 @@ class FZBotEvents : EventHandler
 		double dist = sqrt(dx * dx + dy * dy);
 		if (dist < 20)
 		{
-			Console.Printf("FZBOT: reached wp %d (%.0f, %.0f) ev=%d red=%d st1=%d st2=%d",
+			Console.Printf("FZBOT: reached wp %d (%.0f, %.0f) ev=%d red=%d st1=%d st2=%d st3=%d",
 				wp, pl.Pos.X, pl.Pos.Y, pl.CountInv("FZEvidence"),
 				pl.CountInv("RedCard"), pl.CountInv("FZStage1"),
-				pl.CountInv("FZStage2"));
+				pl.CountInv("FZStage2"), pl.CountInv("FZStage3"));
 			LevelLocals.MakeScreenShot();
 			wp++;
 			stuckTicks = 0;
 			lastX = pl.Pos.X;
 			lastY = pl.Pos.Y;
+			// test seam: skip the three evidence alcoves (negative test -
+			// with no evidence at all the trial door must stay locked)
+			CVar sk = CVar.FindCVar("fz_bot_skip_evidence");
+			if (sk != null && sk.GetInt() == 1 && wp == 7) wp = 16;
+			return;
+		}
+		// test seam: a wrong answer must not soft-lock the chapter. Walk back
+		// to gate A's terminal and touch it again - the menu re-arms once the
+		// 4 s per-terminal cooldown is out - paired with fz_autoanswer 3
+		// (wrong on the first visit, correct on the return visit).
+		CVar rt = CVar.FindCVar("fz_bot_retry");
+		if (rt != null && rt.GetInt() == 1 && retries < 4
+			&& wp >= 5 && pl.CountInv("FZStage1") < 1)
+		{
+			retries++;
+			wp = 3;
+			Console.Printf("FZBOT: retry gate A (#%d)", retries);
 			return;
 		}
 		double sp = 5.0;
-		pl.vel = (dx / dist * sp, dy / dist * sp, pl.vel.z);
+		double vx = dx / dist * sp;
+		double vy = dy / dist * sp;
+		if (sideTicks > 0)
+		{
+			sideTicks--;
+			vx += -dy / dist * sp * sideDir;
+			vy += dx / dist * sp * sideDir;
+		}
+		pl.vel = (vx, vy, pl.vel.z);
 
 		stuckTicks++;
 		if (stuckTicks >= 35)
@@ -208,6 +294,23 @@ class FZBotEvents : EventHandler
 			{
 				Console.Printf("FZBOT: stuck at (%.0f, %.0f) -> wp %d", pl.Pos.X, pl.Pos.Y, wp);
 				if (stuckTicks == 35) NearbyProbe(pl);
+				sideTicks = 28;
+				sideDir = (random(0, 1) == 0) ? -1.0 : 1.0;
+				// Three strikes on the same waypoint: the bot was shoved off
+				// the approach line. The evidence alcove mouths are offset 32
+				// units west of the alcove centre (mouth 1216..1280, crate at
+				// 1280), so once a monster pushes the bot back into the
+				// corridor the straight line to the crate runs into the wall
+				// and no amount of sidestepping fixes it. Step back to the
+				// previous waypoint - always the mouth - and re-enter.
+				if (stuckWpIdx == wp) stuckSameWp++;
+				else { stuckWpIdx = wp; stuckSameWp = 1; }
+				if (stuckSameWp >= 3 && wp > 0)
+				{
+					wp--;
+					stuckSameWp = 0;
+					Console.Printf("FZBOT: backtrack to wp %d", wp);
+				}
 			}
 			lastX = pl.Pos.X;
 			lastY = pl.Pos.Y;
@@ -240,6 +343,8 @@ class FZBotEvents : EventHandler
 	// matter which window owns the OS keyboard focus.
 	ui bool mMenuLogged;
 	ui int mAnswerTicks;
+	ui int mWrongOnceId;
+	int retries;
 
 	override void UiTick()
 	{
@@ -264,7 +369,27 @@ class FZBotEvents : EventHandler
 		mAnswerTicks++;
 		if (mAnswerTicks == 15)
 		{
-			// option A is the correct answer in all six gates
+			// fz_autoanswer 1 = option A (correct in all six gates)
+			// fz_autoanswer 2 = option B on purpose: the negative test that
+			// the choice gates really veto the trial door
+			// fz_autoanswer 3 = wrong the first time this gate is touched,
+			// correct on the return visit. Pairs with fz_bot_retry to prove a
+			// wrong answer costs time, not the chapter.
+			int mode = a.GetInt();
+			if (mode == 3)
+			{
+				// gate A (id ends in 1) is answered wrong on its first visit
+				// and correct on the return visit; gate B is answered
+				// correctly straight away, so the chapter can still be
+				// finished once gate A is retried.
+				if (cm.mGateId % 10 == 1 && cm.mGateId != mWrongOnceId)
+				{
+					mWrongOnceId = cm.mGateId;
+					mode = 2;
+				}
+				else mode = 1;
+			}
+			if (mode == 2) m.MenuEvent(Menu.MKEY_Down, false);
 			m.MenuEvent(Menu.MKEY_Enter, false);
 		}
 	}
