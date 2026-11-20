@@ -89,9 +89,10 @@ class FZGateData ui
 			case 301: return "【简报】“王警官”来电恐吓小陈：\n涉案要判刑！潜入幻影空间，\n拆穿假警察的真面目！";
 			case 302: return "【提示】记住：公检法不会电话办案，\n更没有“安全账户”。";
 			case 303: return "【提示】“案件保密，不许告诉家人”\n是骗子的心虚——告诉家人就是反诈！";
-			case 901: return "证据链到手！集齐 3 件可开启审判门。";
+			case 901: return "获得一件证据碎片！集齐 3 件可开启审判门。";
 			case 902: return "幕后主谋已倒下！拾取掉落的\n【主谋证据】，前往出口结案。";
 			case 903: return "结案！主谋已伏法，前往出口开关。";
+			case 904: return "【证据链完整】审判门已解锁，\n走到红锁门前按 E 进入。";
 			case 111: return "【识破】凡是让你先垫资的刷单都是诈骗——\n先给甜头后宰客，垫付的钱有去无回！";
 			case 121: return "【识破】共享屏幕=把银行卡密码拱手送人！\n卡单、解冻、激活全是话术。";
 			case 211: return "【识破】脱离平台私下交易=放弃一切保障，\n转账瞬间对方立刻拉黑跑路。";
@@ -120,6 +121,14 @@ class FZChoiceMenu : Menu
 	BrokenLines mScenario;
 	Font mFont;
 
+	// The canvas cannot be the classic 320x200 here. The CJK atlas is 16 px
+	// tall, so title(32) + 5 scenario lines + 2 options + hint need ~190
+	// units, while a 320-wide canvas only yields ~172 on a 16:9 window -
+	// the hint line got clipped by the window edge. Widening the canvas to
+	// 400 shrinks the glyphs relative to the frame and leaves room for
+	// every row, with the height derived from the real aspect ratio.
+	private int MenuW() { return 400; }
+
 	void Setup(int gid)
 	{
 		Init(Menu.GetCurrentMenu());
@@ -128,38 +137,63 @@ class FZChoiceMenu : Menu
 		mCommitted = false;
 		mFont = "fzfont";
 		mDef = FZGateData.Get(gid);
-		mScenario = mFont.BreakLines(mDef.scenario, 272);
+		mScenario = mFont.BreakLines(mDef.scenario, MenuW() - 40);
 	}
 
-	private void DrawVText(Font f, int color, double x, double y, String s, double scale = 1.0)
+	private int VirtualHeight()
 	{
+		int sw = int(screen.GetWidth());
+		int sh = int(screen.GetHeight());
+		if (sw <= 0 || sh <= 0) return 250;
+		int vh = int(MenuW() * double(sh) / double(sw));
+		if (vh < 160) vh = 160;
+		if (vh > 330) vh = 330;
+		return vh;
+	}
+
+	private void DrawVText(Font f, int color, double x, double y, String s,
+		double scale = 1.0, int vh = 250)
+	{
+		// No DTA_KeepRatio: it would force the canvas back to a fixed 4:3
+		// ratio and let the bottom overflow again. 400 x vh already
+		// matches the window aspect, so the mapping stays 1:1.
 		screen.DrawText(f, color, x, y, s,
-			DTA_VirtualWidth, 320, DTA_VirtualHeight, 200,
-			DTA_KeepRatio, true, DTA_ScaleX, scale, DTA_ScaleY, scale);
+			DTA_VirtualWidth, MenuW(), DTA_VirtualHeight, vh,
+			DTA_ScaleX, scale, DTA_ScaleY, scale);
 	}
 
 	override void Drawer()
 	{
 		screen.Dim(0, 0.78, 0, 0, screen.GetWidth(), screen.GetHeight());
 
-		// tight vertical budget: 200 virtual px must hold title + 4 scenario
-		// lines + 2 options + hint. Keep every step explicit.
-		double y = 2;
-		int tw = mFont.StringWidth(mDef.title);
-		DrawVText(mFont, Font.CR_UNTRANSLATED, 160 - (tw * 2) / 2.0, y, mDef.title, 2.0);
-		y += 32;
+		int vh = VirtualHeight();
+		int fh = mFont.GetHeight();
+		double cx = MenuW() / 2.0;
 
-		int lineh = mFont.GetHeight() + 1;
+		// Bottom-up: the hint owns the last row with a safe margin, the two
+		// options sit directly above it, and the scenario gets what is left.
+		double hintY = vh - fh - 10;
+		double optBlock = (fh + 6) * 2;
+		double y = 8;
+
+		int tw = mFont.StringWidth(mDef.title);
+		DrawVText(mFont, Font.CR_UNTRANSLATED, cx - tw, y, mDef.title, 2.0, vh);
+		y += fh * 2 + 8;
+
 		int c = mScenario.Count();
+		double bodyAvail = hintY - optBlock - 8 - y;
+		double lineh = fh + 2;
+		if (c > 0 && c * lineh > bodyAvail)
+			lineh = max(fh - 2, int(bodyAvail / c));
 		for (int i = 0; i < c; i++)
 		{
 			int lw = mScenario.StringWidth(i);
-			DrawVText(mFont, Font.CR_UNTRANSLATED, 160 - lw / 2.0, y,
-				mScenario.StringAt(i));
+			DrawVText(mFont, Font.CR_UNTRANSLATED, cx - lw / 2.0, y,
+				mScenario.StringAt(i), 1.0, vh);
 			y += lineh;
 		}
 
-		y += 8;
+		y = hintY - optBlock;
 		for (int i = 0; i < 2; i++)
 		{
 			bool sel = (mSelection == i);
@@ -168,18 +202,18 @@ class FZChoiceMenu : Menu
 			if (sel) f = "fzfont_green";
 			else f = "fzfont_gray";
 			int cw = mFont.StringWidth(opt);
-			double ox = 160 - cw / 2.0 - 18;
-			DrawVText(f, Font.CR_UNTRANSLATED, ox, y, opt);
+			double ox = cx - cw / 2.0 - 20;
+			DrawVText(f, Font.CR_UNTRANSLATED, ox, y, opt, 1.0, vh);
 			if (sel && (Menu.MenuTime() % 8) < 6)
 			{
-				DrawVText(mFont, Font.CR_UNTRANSLATED, ox - 16, y, ">");
+				DrawVText(mFont, Font.CR_UNTRANSLATED, ox - 18, y, ">", 1.0, vh);
 			}
-			y += mFont.GetHeight() + 4;
+			y += fh + 6;
 		}
 
-		String hint = "[↑/↓] 选择  [回车] 确认";
+		String hint = "[↑/↓] 选择   [回车] 确认";
 		int hw = mFont.StringWidth(hint);
-		DrawVText(mFont, Font.CR_UNTRANSLATED, 160 - hw / 2.0, 176, hint);
+		DrawVText(mFont, Font.CR_UNTRANSLATED, cx - hw / 2.0, hintY, hint, 1.0, vh);
 	}
 
 	private void Commit(int choice)
@@ -341,10 +375,11 @@ class FZPlayEvents : EventHandler
 		if (choice == GateCorrect(gid))
 		{
 			pl.GiveInventory(GateStage(gid), 1);
-			pl.GiveInventory("FZEvidence", 1);
-			pl.GiveInventory("RedCard", 1);
 			pl.GiveInventory("ArmorBonus", 10); // 防骗盾 +10
 			FZMsgItemBase.Push(pl, GateMsgRight(gid), 300);
+			// Granted last so the "chain complete" banner (904) wins over
+			// the per-choice banner when this happens to be the third piece.
+			FZEvidenceChain.Grant(pl);
 			// mark this gate's terminal done (terminals share tid 3942;
 			// tid 0 is an empty iterator in this engine - never use it)
 			let it = level.CreateActorIterator(3942);

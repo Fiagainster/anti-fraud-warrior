@@ -87,6 +87,28 @@ class FZMsg1 : FZMsgItemBase {}
 class FZMsg2 : FZMsgItemBase {}
 class FZMsg3 : FZMsgItemBase {}
 
+// --------------------------------------------------------- evidence -------
+
+// Single source of truth for "a piece of evidence was just obtained".
+//
+// The trial door only ever checks the RedCard, so the card has to appear
+// exactly when the chain is complete - handing it out on the first correct
+// choice (as the demo used to) opened the door while the HUD still read
+// 1/3, contradicting both the banner text and the README.
+class FZEvidenceChain : Object play
+{
+	static void Grant(Actor pl, int amount = 1)
+	{
+		if (pl == null || pl.player == null) return;
+		pl.GiveInventory("FZEvidence", amount);
+		if (pl.CountInv("FZEvidence") >= 3 && pl.CountInv("RedCard") == 0)
+		{
+			pl.GiveInventory("RedCard", 1);
+			FZMsgItemBase.Push(pl, 904, 320);
+		}
+	}
+}
+
 // ------------------------------------------------------- choice gate ------
 
 // Holographic scam terminals. Walk into one to open its choice menu.
@@ -181,8 +203,7 @@ class FZEvidencePickup : Inventory
 	{
 		if (toucher == null || toucher.player == null) return false;
 		if (toucher.CountInv("FZEvidence") >= 3) return false;
-		toucher.GiveInventory("FZEvidence", 1);
-		toucher.GiveInventory("RedCard", 1);
+		FZEvidenceChain.Grant(toucher);
 		FZMsgItemBase.Push(toucher, 901, 210);
 		GoAwayAndDie();
 		return true;

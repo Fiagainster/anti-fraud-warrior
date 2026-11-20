@@ -16,6 +16,13 @@ class FZStatusBar : BaseStatusBar
 	HUDFont mYellow;
 	HUDFont mGray;
 
+	// Gate id we already pushed a menu for. The play side takes FZGateLock
+	// away through a network event, which lands a tic or two later - and
+	// Draw() runs every frame, so without this the same lock opened the
+	// same menu twice and the choice was committed twice (两件证据 from one
+	// gate, double shield bonus). Cleared as soon as the lock disappears.
+	int mHandledGate;
+
 	override void Init()
 	{
 		Super.Init();
@@ -88,8 +95,14 @@ class FZStatusBar : BaseStatusBar
 		if (mo.CountInv("FZGateCool") > 0) return;
 
 		let lock = FZGateLock(mo.FindInventory("FZGateLock"));
-		if (lock == null) return;
+		if (lock == null)
+		{
+			mHandledGate = 0; // lock resolved -> re-arm for the next gate
+			return;
+		}
+		if (mHandledGate == lock.GateId) return; // already opened for this lock
 
+		mHandledGate = lock.GateId;
 		let m = new("FZChoiceMenu");
 		m.Setup(lock.GateId);
 		m.ActivateMenu();
@@ -179,7 +192,7 @@ class FZStatusBar : BaseStatusBar
 			DrawString(mGreen, "反诈战士", (6, 155), DI_NOSHADOW, Font.CR_UNTRANSLATED);
 			DrawString(mRed, String.Format("警惕值 %d", CPlayer.health), (80, 155), DI_NOSHADOW, Font.CR_UNTRANSLATED);
 			DrawString(mBlue, String.Format("防骗盾 %d", GetArmorAmount()), (176, 155), DI_NOSHADOW, Font.CR_UNTRANSLATED);
-						int ev = mo.CountInv("FZEvidence");
+			int ev = mo.CountInv("FZEvidence");
 			if (ev > 3) ev = 3;
 			DrawString(mGold, String.Format("证据 %d/3", ev), (256, 155), DI_NOSHADOW, Font.CR_UNTRANSLATED);
 
