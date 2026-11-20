@@ -14,6 +14,7 @@ overriding the stock M_* patches, not by replacing MENUDEF.
 
 from __future__ import annotations
 
+import os
 import zipfile
 from pathlib import Path
 
@@ -26,6 +27,15 @@ def ensure_fonts() -> None:
     """Font atlases are generated from the ZScript strings; regenerate if
     a fresh clone has none (needs vendor Fusion Pixel ttf)."""
     if (GAME / "fonts" / "fzfont" / "font.inf").exists():
+        return
+    # CI has the IWAD (BSD, downloadable) but not the font ttf, so it packs
+    # without atlases to still exercise map generation + packing. The HUD
+    # will print nothing in that state - hence the loud warning and the
+    # explicit opt-in. Never set this for a release build.
+    if os.environ.get("FZ_ALLOW_NO_FONTS") == "1":
+        print("WARN fonts missing -> packing WITHOUT font atlases "
+              "(CI smoke build only; in-game text will not render). "
+              "Generate them with: python tools/gen_font.py")
         return
     print("fonts missing -> generating via tools/gen_font.py")
     import subprocess
