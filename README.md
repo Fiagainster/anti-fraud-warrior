@@ -1,6 +1,8 @@
 # 反诈战士
 
 基于 Doom 引擎（UZDoom 5.0.3 + Freedoom）的公安反诈宣传游戏。
+
+开源仓库：<https://github.com/Fiagainster/anti-fraud-warrior>（GPL-3.0）
 **当前状态：三章演示可玩，已出交付包** —— 刷单深渊 / 装备黑市 / 警服幻影。
 
 ## 交付包
@@ -21,9 +23,9 @@ dist/fanzha-demo-v0.1/           ← 解压即玩的目录
 
 ```powershell
 python tools\doctor.py                 # 环境自检（缺什么会告诉你）
-python toolsetch_vendor.py status    # 校验引擎/IWAD/字体（大文件不入库）
-python toolsuild.py                  # 缺地图/字体会自动生成
-python toolsz_ctl.py check           # 编译预检
+python tools\fetch_vendor.py status    # 校验引擎/IWAD/字体（大文件不入库）
+python tools\build.py                  # 缺地图/字体会自动生成
+python tools\fz_ctl.py check           # 编译预检
 ```
 
 - 角色手册：美术 / 地图 / 程序 / 剧情 / 音频（`docs/协作/角色-*.md`）
@@ -80,9 +82,13 @@ python tools\fz_ctl.py full     # 三章马拉松（战斗/过场/切换）
 
 ## 截图
 
-![第一章 HUD](docs/images/chapter1-hud.png)
+| 标题页 | 抉择菜单 |
+|---|---|
+| ![标题页](docs/images/title.png) | ![抉择菜单](docs/images/chapter1-gate.png) |
 
-![抉择菜单](docs/images/chapter1-gate.png)
+| 竞技场与 HUD | Boss 战 |
+|---|---|
+| ![第一章 HUD](docs/images/chapter1-hud.png) | ![Boss 战](docs/images/chapter1-boss.png) |
 
 ## 目录
 

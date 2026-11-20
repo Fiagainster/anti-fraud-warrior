@@ -6,7 +6,7 @@
 ## 30 分钟上手
 
 ```powershell
-git clone <仓库地址>
+git clone https://github.com/Fiagainster/anti-fraud-warrior.git
 cd 反诈战士
 git lfs install                 # 如需拉取美术/音频源文件
 
@@ -48,6 +48,11 @@ python tools\fz_ctl.py tour     # 第一章自动化回归（预期 9/9）
 文档        docs/        方案、剧情、验收、协作手册
 产物        build/ dist/ 构建与交付（不入库）
 ```
+
+## 网络
+
+若 `github.com` 直连不稳定：给 git 配代理
+（`git config --global http.proxy http://127.0.0.1:<端口>`），或改用 `gh`（走 `api.github.com`）。下载引擎/IWAD 同理。
 
 ## 沟通与节奏
 
