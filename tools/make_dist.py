@@ -45,7 +45,7 @@ if not exist "fanzha-demo.pk3" goto missing
 
 start "" "uzdoom.exe" -config "uzdoom.cfg" -iwad "freedoom1.wad" ^
  -file "maps\\FZ01.wad" -file "maps\\FZ02.wad" -file "maps\\FZ03.wad" ^
- -file "fanzha-demo.pk3" -skill 1 ^
+ -file "fanzha-demo.pk3" ^
  +set vid_fullscreen 0 +set vid_defwidth 1280 +set vid_defheight 720 ^
  +set language "zh-Hans" +set gl_texture_filter 0
 exit /b 0

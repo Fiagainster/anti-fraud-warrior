@@ -134,6 +134,13 @@ python tools\fz_ctl.py full     # 三章马拉松（战斗/过场/切换）
 21. **Vulkan 管线缓存损坏**（强杀进程残留）→ 随机 Access Violation；
     删除 `%LOCALAPPDATA%\doom\uzdoom\vulkanpipelinecache` 即愈。
 
+## 已知行为（不是崩溃）
+
+- 标题页停留数秒后会播放 Freedoom 自带的旧格式 demo；旧格式录像会作用在
+  当前起始地图上，看起来像"角色自己在打"。按任意键回到标题即可。后续计划
+  用 TITLEMAP 或自录 DEMO 替换（见 docs/开发日志）。
+- 单集演示：标题按回车后只有一个章节，引擎会自动跳过章节选择，直接到难度菜单。
+
 ## 已知待办
 
 - [ ] 敌人/武器 sprite 仍为 Freedoom 占位素材（Blender 8 方向渲染是下一步）

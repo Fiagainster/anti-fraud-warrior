@@ -115,8 +115,40 @@ def build_test_cfg() -> str:
     ])
     return txt
 
+ENGINE_FILES = [
+    "uzdoom.exe", "uzdoom.pk3", "game_support.pk3", "lights.pk3",
+    "brightmaps.pk3", "game_widescreen_gfx.pk3",
+    "libcurl-x64.dll", "sndfile.dll", "soft_oal.dll",
+]
+
+
+def _provision_engine() -> None:
+    """A fresh clone has no vendor binaries in the staging dir yet. Copy
+    them from vendor/ (after `fetch_vendor.py import`) so the harness works
+    without any manual setup."""
+    import shutil
+    if not EXE.exists():
+        src = ROOT / "vendor/uzdoom-5.0.3"
+        if not (src / "uzdoom.exe").exists():
+            raise SystemExit(
+                "engine missing. Import it once:\n"
+                "  python tools/fetch_vendor.py import --uzdoom <dir> "
+                "--freedoom <freedoom1.wad> --font <ttf>")
+        for name in ENGINE_FILES:
+            if (src / name).exists():
+                shutil.copy2(src / name, STAGE / name)
+    if not IWAD.exists():
+        src = ROOT / "vendor/freedoom-0.13.0/freedoom1.wad"
+        if not src.exists():
+            raise SystemExit(
+                "freedoom1.wad missing. Import it once:\n"
+                "  python tools/fetch_vendor.py import --freedoom <freedoom1.wad>")
+        shutil.copy2(src, IWAD)
+
+
 def stage() -> None:
     STAGE.mkdir(exist_ok=True)
+    _provision_engine()
     (STAGE / "fanzha-demo.pk3").write_bytes(
         (ROOT / "build/fanzha-demo.pk3").read_bytes())
     for name in CHAPTER_WADS:
