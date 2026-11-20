@@ -28,3 +28,6 @@ __pycache__/
 *.swp
 Thumbs.db
 desktop.ini
+
+# AI 助手的工作区数据（记忆、日志），不属于仓库内容
+/.workbuddy/
