@@ -28,9 +28,9 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / "D__fztest"  # placeholder, real staging lives on D:\fztest
-EXE = Path("D:/fztest/uzdoom.exe")
-IWAD = Path("D:/fztest/freedoom1.wad")
-STAGE_DIR = Path("D:/fztest")
+EXE = STAGE / "uzdoom.exe"
+IWAD = STAGE / "freedoom1.wad"
+STAGE_DIR = STAGE
 BUILD = ROOT / "build"
 GAME_PK3 = BUILD / "fanzha-demo.pk3"
 HOOK_PK3 = BUILD / "fz-testhooks-hud.pk3"
@@ -98,15 +98,15 @@ def main() -> int:
     run_log = str(log).replace("/", "\\")
     shot_dir = str(SHOTS).replace("/", "\\")
     args = [
-        "D:/fztest/uzdoom.exe",
-        "-config", "D:/fztest/t.cfg",
+        str(EXE),
+        "-config", "t.cfg",
         "-logfile", run_log,
-        "-iwad", "D:/fztest/freedoom1.wad",
-        "-file", "D:/fztest/FZ01.wad",
-        "-file", "D:/fztest/FZ02.wad",
-        "-file", "D:/fztest/FZ03.wad",
-        "-file", "D:/fztest/fanzha-demo.pk3",
-        "-file", "D:/fztest/fz-testhooks-hud.pk3",
+        "-iwad", "freedoom1.wad",
+        "-file", "FZ01.wad",
+        "-file", "FZ02.wad",
+        "-file", "FZ03.wad",
+        "-file", "fanzha-demo.pk3",
+        "-file", "fz-testhooks-hud.pk3",
         "+map", "FZ01", "-skill", "1", "-nomonsters", "-nosound", "-windowed",
         "-noextras", "-shotdir", shot_dir,
         "+set", "enablescriptscreenshot", "1",

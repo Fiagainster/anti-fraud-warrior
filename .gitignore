@@ -17,7 +17,8 @@ __pycache__/
 *.pyc
 .venv/
 
-# 测试暂存 / 截图
+# 测试暂存 / 本地克隆验证（体积大，不入库）
+/_staging/
 /D__fztest/
 *.log
 

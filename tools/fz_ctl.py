@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import winbot  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGE = Path("D:/fztest")
+STAGE = ROOT / "_staging" / "fztest"
 SHOTS = STAGE / "bot_shots"
 LOG = STAGE / "run.log"          # -logfile (best effort, flushed enough)
 OUTLOG = STAGE / "bot_stdout.log"

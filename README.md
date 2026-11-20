@@ -134,6 +134,12 @@ python tools\fz_ctl.py full     # 三章马拉松（战斗/过场/切换）
 21. **Vulkan 管线缓存损坏**（强杀进程残留）→ 随机 Access Violation；
     删除 `%LOCALAPPDATA%\doom\uzdoom\vulkanpipelinecache` 即愈。
 
+## 许可
+
+- 本仓库代码与自制内容：**GPL-3.0**（见 [LICENSE](LICENSE)）
+- 第三方组件（UZDoom / Freedoom / Fusion Pixel）许可见交付包 `LICENSES/`
+  与 [docs/协作/素材授权与AI合规.md](docs/协作/素材授权与AI合规.md)
+
 ## 已知行为（不是崩溃）
 
 - 标题页停留数秒后会播放 Freedoom 自带的旧格式 demo；旧格式录像会作用在
