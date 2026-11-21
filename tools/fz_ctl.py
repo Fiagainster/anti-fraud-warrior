@@ -295,7 +295,8 @@ def clean() -> None:
 
 def launch(bot: int = 1, stop: int = -1, combat: int = 0,
            timeout: int = 150, monsters: bool = True,
-           extra: list[str] | None = None, mapname: str | None = None):
+           extra: list[str] | None = None, mapname: str | None = None,
+           post: list[str] | None = None):
     args = game_args(preflight=False) + [
         "-skill", "1",
         "-shotdir", str(SHOTS),
@@ -316,6 +317,11 @@ def launch(bot: int = 1, stop: int = -1, combat: int = 0,
     if mapname:
         # skip title/difficulty; the route bot picks up at wp0
         args += ["+map", mapname]
+    # 命令行的 `+cmd` 按出现顺序执行，所以地图相关的命令必须排在 `+map`
+    # 之后。这一路是绕开键盘的：往里敲 `~` 再敲命令，按键会漏到游戏里
+    # （控制台根本没打开，字符变成了移动/使用），所以只走命令行。
+    if post:
+        args += post
     if not monsters:
         args.append("-nomonsters")
     SHOTS.mkdir(exist_ok=True)
@@ -586,6 +592,30 @@ def sc_gate() -> list:
     return boot_steps()
 
 
+def sc_actor() -> list:
+    """美术管线验收：把自制怪物当场召唤出来看一眼。
+
+    只有三件事要证明，全是"看不见就不知道坏没坏"的那类：精灵能被找到
+    （否则引擎画的是问号），行走帧能播（States 接错就僵在第一帧），死
+    亡帧能落到尸体（A_NoBlocking 漏了会留一堵看不见的墙）。
+
+    召唤走命令行（`post`），不走控制台：往里敲 `~` 再敲命令，按键会整串
+    漏到游戏里，玩家会自己走起来撞终端。命令行是引擎自己执行的，稳。
+
+    这个场景用 -nomonsters 清场，只留手动召唤的那几只当样本，否则关卡
+    自带的敌人会一起冲上来把画面糊住。
+    """
+    return [
+        ("wait", 5.0), ("shot", "20_actor_idle"),
+        # 站住不动，让它自己 A_Look -> A_Chase 走过来，看行走帧有没有换
+        ("wait", 2.5), ("shot", "21_actor_chase"),
+        # 正前方近距离点几枪：能打死就说明 Death 状态接对了，尸体不会
+        # 变成一堵看不见的墙
+        ("key", "ctrl", 2.0), ("wait", 1.5), ("shot", "22_actor_dead"),
+        ("shot", "99_final"),
+    ]
+
+
 def sc_esc() -> list:
     return boot_steps() + [
         ("wait", 0.8),
@@ -606,6 +636,13 @@ SCENARIOS = {
                            want_routes=1, deadline=80,
                            extra=["+set", "fz_autoanswer", "1"])),
     "esc": (sc_esc, dict(bot=0, monsters=False)),
+    # 美术管线验收场景，见 sc_actor()。不启机器人：这里要的是一张能看清
+    # 怪物长相的静止画面，而不是走完路线。召唤与 god 都走命令行，地图加载
+    # 完成之后才执行（+ 命令按出现顺序跑）。
+    "actor": (sc_actor, dict(bot=0, monsters=False,
+                             post=["+god",
+                                   "+summon", "FZShill",
+                                   "+summon", "FZShill"])),
     "menu": (None, dict(bot=1, stop=4, timeout=60, monsters=False,
                         want_routes=1, deadline=50, answer=False)),
     "door": (None, dict(bot=1, stop=24, timeout=110, monsters=False,
@@ -955,6 +992,18 @@ def report(scenario: str, driver_ok: bool, mapname: str | None = None,
         check("重答后审判门打开（进 Boss 房 wp23）",
               any("reached wp 23" in l for l in reached),
               "door never opened after the retry")
+
+    if scenario == "actor":
+        # 这个场景不看路线，只看"引擎认不认这套自制角色"。类的编译失败和
+        # 精灵的缺帧都不会让引擎崩，只会在控制台留一句，所以两条都得查。
+        check("自制怪物类可被召唤（没有 Unknown actor）",
+              not any(k in txt for k in ("Unknown actor", "Summon failed",
+                                         "No actor named")),
+              "FZShill never compiled in: fz_actors.zs / zscript.txt")
+        check("精灵帧没有触发缺失警告",
+              not any(k in txt for k in ("Unknown sprite", "sprite not found",
+                                         "No frames found")),
+              "FZFR*.png missing from the pk3")
 
     if scenario == "boss":
         if segs:
