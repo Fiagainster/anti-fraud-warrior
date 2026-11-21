@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-"""Generate the three chapters as VANILLA-format PWADs.
+"""Generate the three chapters as UDMF PWADs (vanilla binary still available).
 
-Vanilla binary lumps sidestep the UDMF loader crash entirely, and the
-axis-aligned room layout needs no UDMF features. Doors, locks and the exit
-switch use classic Doom linedef specials; gate terminals are custom actors
-with their own DoomEd numbers (one class per gate, since vanilla things
-have no args field).
+UDMF is plain text, so the map can be read, diffed and edited without a
+Doom editor. The namespace is ZDoomTranslated on purpose: the engine runs
+the classic xlat translation on it, which means line/sector specials keep
+their *Doom* numbers. Writing the plain `zdoom` namespace instead would
+demand hand-translating every special into its Hexen form (door 31 becomes
+Door_LockedRaise plus a lock argument, exit 52 becomes Teleport_NewMap,
+and the walk/use/shoot activation moves out of the special number into
+separate linedef flags) - five chances to silently break gameplay in a way
+that only shows up when a player walks into a door.
+
+Pass `--format vanilla` to emit the old binary lumps instead.
+
+Doors, locks and the exit switch use classic Doom linedef specials; gate
+terminals are custom actors with their own DoomEd numbers (one class per
+gate, since vanilla things have no args field).
 
 Hard rules learned the painful way (do not regress):
   * texture/flat names are NUL padded, never space padded - space padding
@@ -25,11 +35,13 @@ Hard rules learned the painful way (do not regress):
   * every name used on sidedefs/sectors is validated against the IWAD at
     generation time; unknown names fail the build instead of the player.
 
-Lumps per map: FZxx marker, THINGS, LINEDEFS, SIDEDEFS, VERTEXES, SECTORS.
-UZDoom builds nodes automatically when they are missing.
+UDMF lumps per map: FZxx marker, TEXTMAP, ENDMAP.
+Vanilla lumps per map: FZxx marker, THINGS, LINEDEFS, SIDEDEFS, VERTEXES,
+SECTORS. UZDoom builds nodes automatically when they are missing.
 """
 
 import struct
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,6 +89,48 @@ def pad8(s):
     return s.encode("ascii")[:8].ljust(8, b"\0")
 
 
+# ---------------------------------------------------------------- udmf --
+UDMF_NS = "ZDoomTranslated"
+UDMF_VERSION = "1.0"
+
+
+def num(v):
+    """UDMF is text: print integers as integers so the file stays readable
+    and diffs stay small."""
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return str(v)
+
+
+def quoted(name):
+    return '"%s"' % name
+
+
+def tex(raw):
+    """SIDEDEFS and SECTORS store NUL-padded 8-char names; UDMF wants plain
+    strings and uses "-" for 'no texture'."""
+    if isinstance(raw, str):
+        return raw or "-"
+    out = raw.rstrip(b"\0").decode("ascii")
+    return out or "-"
+
+
+def wad_from(lumps):
+    """Assemble a PWAD from (lumpname, payload) pairs."""
+    body = bytearray()
+    headers = []
+    offset = 12
+    for name, data in lumps:
+        headers.append((offset, len(data), pad8(name)))
+        body += data
+        offset += len(data)
+    out = bytearray(struct.pack("<4sii", b"PWAD", len(lumps), offset))
+    out += body
+    for off, size, nd in headers:
+        out += struct.pack("<ii8s", off, size, nd)
+    return bytes(out)
+
+
 def iwad_names():
     """Collect flat names (F* namespaces) and texture names (TEXTURE1/2)."""
     data = IWAD.read_bytes()
@@ -111,7 +165,13 @@ def iwad_names():
     return flats, textures
 
 
-class VanillaMap:
+class MapBuilder:
+    """Format-agnostic map model: geometry in, PWAD bytes out.
+
+    `udmf_text()` is the serialization that matters now; `wad_bytes()` is
+    kept so the old binary path keeps working (and so the two can be diffed
+    against each other).
+    """
     def __init__(self):
         self.verts = []
         self.vmap = {}
@@ -276,6 +336,85 @@ class VanillaMap:
         self.line(x2, y1, x2, y2, front=sd_f, back=sd_b, blocking=False,
                   special=special, tag=0)
 
+    def udmf_text(self):
+        """Serialize to a UDMF TEXTMAP.
+
+        UDMF assigns indices by order of appearance, so the arrays are
+        emitted in their own index order and the references (v1/v2,
+        sidefront/sideback, sidedef.sector) line up without an index field.
+        """
+        out = ['namespace = "%s";' % UDMF_NS,
+               'version = "%s";' % UDMF_VERSION, ""]
+
+        def emit(kind, idx, props):
+            out.append("%s // %d" % (kind, idx))
+            out.append("{")
+            out.extend("\t%s = %s;" % kv for kv in props)
+            out.append("}")
+            out.append("")
+
+        for i, (x, y) in enumerate(self.verts):
+            emit("vertex", i, [("x", num(x)), ("y", num(y))])
+
+        for i, (v1, v2, fl, sp, tg, front, back) in enumerate(self.lines):
+            props = [("v1", str(v1)), ("v2", str(v2))]
+            if front is not None:
+                props.append(("sidefront", str(front)))
+            if back is not None:
+                props.append(("sideback", str(back)))
+            # Only emit flags that are set: activation (playercross /
+            # playeruse / shoot) is deliberately absent - xlat derives it
+            # from the Doom special number itself.
+            if fl & 1:
+                props.append(("blocking", "true"))
+            if fl & 4:
+                props.append(("twosided", "true"))
+            if sp:
+                props.append(("special", str(sp)))
+            if tg:
+                props.append(("arg0", str(tg)))   # Doom line tag == arg0
+            emit("linedef", i, props)
+
+        for i, (xo, yo, up, lo, mid, sec) in enumerate(self.sides):
+            emit("sidedef", i, [("sector", str(sec)),
+                                ("texturetop", quoted(tex(up))),
+                                ("texturebottom", quoted(tex(lo))),
+                                ("texturemiddle", quoted(tex(mid))),
+                                ("offsetx", num(xo)),
+                                ("offsety", num(yo))])
+
+        for i, (fh, ch, fl, c, lt, sp, tg) in enumerate(self.sectors):
+            props = [("heightfloor", num(fh)), ("heightceiling", num(ch)),
+                     ("texturefloor", quoted(tex(fl))),
+                     ("textureceiling", quoted(tex(c))),
+                     ("lightlevel", num(lt))]
+            if sp:
+                props.append(("special", str(sp)))
+            if tg:
+                props.append(("id", str(tg)))     # Doom sector tag == id
+            emit("sector", i, props)
+
+        for i, (x, y, ang, typ, fl) in enumerate(self.things):
+            # Doom option bits: 1/2/4 = skill 1/2/3, 8 = ambush,
+            # 16 = multiplayer only. Without bit 16 a thing is present in
+            # every game mode, which is what 7 has always meant here.
+            props = [("x", num(x)), ("y", num(y)), ("angle", str(ang)),
+                     ("type", str(typ)),
+                     ("skill1", "true" if fl & 1 else "false"),
+                     ("skill2", "true" if fl & 2 else "false"),
+                     ("skill3", "true" if fl & 4 else "false"),
+                     ("single", "false" if fl & 16 else "true"),
+                     ("coop", "true"), ("dm", "true")]
+            if fl & 8:
+                props.append(("ambush", "true"))
+            emit("thing", i, props)
+
+        return "\n".join(out)
+
+    def udmf_bytes(self, mapname):
+        text = self.udmf_text().encode("ascii")
+        return wad_from([(mapname, b""), ("TEXTMAP", text), ("ENDMAP", b"")])
+
     def wad_bytes(self, mapname):
         things = b"".join(struct.pack("<hhhHH", x, y, a, t, f)
                           for (x, y, a, t, f) in self.things)
@@ -288,25 +427,13 @@ class VanillaMap:
         secs = b"".join(struct.pack("<hh8s8shhh", fh, ch, fl, c, lt, sp, tg)
                         for (fh, ch, fl, c, lt, sp, tg) in self.sectors)
         verts = b"".join(struct.pack("<hh", x, y) for (x, y) in self.verts)
-        lumps = [(mapname, b""), ("THINGS", things), ("LINEDEFS", lines),
-                 ("SIDEDEFS", sides), ("VERTEXES", verts), ("SECTORS", secs)]
-        out = bytearray()
-        offset = 12
-        body = bytearray()
-        headers = []
-        for name, data in lumps:
-            headers.append((offset, len(data), pad8(name)))
-            body += data
-            offset += len(data)
-        out += struct.pack("<4sii", b"PWAD", len(lumps), offset)
-        out += body
-        for off, size, nd in headers:
-            out += struct.pack("<ii8s", off, size, nd)
-        return bytes(out)
+        return wad_from([(mapname, b""), ("THINGS", things),
+                         ("LINEDEFS", lines), ("SIDEDEFS", sides),
+                         ("VERTEXES", verts), ("SECTORS", secs)])
 
 
 def build_chapter(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
-    m = VanillaMap()
+    m = MapBuilder()
     wall = palette["wall"]
     cwall = palette["cwall"]
     floor = palette["floor"]
@@ -495,18 +622,44 @@ def validate(built):
           % (len(built), IWAD.name, len(flats), len(textures)))
 
 
-def main():
+FORMATS = ("udmf", "vanilla")
+
+
+def parse_format(argv):
+    """`--format udmf|vanilla`, default udmf."""
+    fmt = "udmf"
+    for i, a in enumerate(argv):
+        if a in ("--format", "-f"):
+            if i + 1 >= len(argv):
+                raise SystemExit("--format needs a value: " + "|".join(FORMATS))
+            fmt = argv[i + 1].lower()
+        elif a.startswith("--format="):
+            fmt = a.split("=", 1)[1].lower()
+    if fmt not in FORMATS:
+        raise SystemExit("unknown format %r, expected one of %s"
+                         % (fmt, ", ".join(FORMATS)))
+    return fmt
+
+
+def main(argv=None):
+    fmt = parse_format(sys.argv[1:] if argv is None else argv)
     OUT.mkdir(parents=True, exist_ok=True)
     built = {}
     for ch in CHAPTERS:
         m = build_chapter(**{k: v for k, v in ch.items() if k != "name"})
         check_things(ch, m)
         path = OUT / (ch["name"] + ".wad")
-        path.write_bytes(m.wad_bytes(ch["name"]))
+        if fmt == "udmf":
+            data = m.udmf_bytes(ch["name"])
+        else:
+            data = m.wad_bytes(ch["name"])
+        path.write_bytes(data)
         built[ch["name"]] = m
-        print(path, "sectors", len(m.sectors), "lines", len(m.lines),
-              "things", len(m.things),
-              "gates", GATE_EDNUM[ch["gate_a"]], GATE_EDNUM[ch["gate_b"]])
+        print("%s  %-7s %6d bytes  sectors %d  lines %d  things %d  "
+              "gates %d/%d"
+              % (path, fmt, len(data), len(m.sectors), len(m.lines),
+                 len(m.things), GATE_EDNUM[ch["gate_a"]],
+                 GATE_EDNUM[ch["gate_b"]]))
     validate(built)
 
 

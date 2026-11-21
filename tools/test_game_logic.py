@@ -98,11 +98,77 @@ def func_body(src: str, name: str) -> str:
     return ""
 
 
+def parse_udmf(text: str) -> dict:
+    """Parse a UDMF TEXTMAP into the same dict shape parse_wad returns, so
+    every geometry check below works without knowing the map format.
+
+    UDMF assigns indices by order of appearance, which is also how the
+    binary lumps are ordered, so v1/v2/sidefront/back stay comparable."""
+    kinds = ("vertex", "linedef", "sidedef", "sector", "thing")
+    blocks: dict[str, list[dict[str, str]]] = {k: [] for k in kinds}
+    for m in re.finditer(r"\b(%s)\b[^{]*\{([^}]*)\}" % "|".join(kinds),
+                         text, re.S):
+        props = dict(re.findall(r"([a-z0-9_]+)\s*=\s*([^;]+);", m.group(2)))
+        blocks[m.group(1)].append({k: v.strip() for k, v in props.items()})
+
+    def num(blk: dict, key: str, default: int = 0) -> int:
+        raw = blk.get(key)
+        return default if raw is None else int(float(raw))
+
+    def on(blk: dict, key: str) -> bool:
+        return blk.get(key, "false") == "true"
+
+    def tex(blk: dict, key: str) -> str:
+        return (blk.get(key, '"-"').strip('"') or "-").upper()
+
+    def flags(blk: dict) -> int:
+        # Rebuild the Doom option bits so the thing checks stay identical.
+        f = 0
+        for bit, name in ((1, "skill1"), (2, "skill2"), (4, "skill3")):
+            if on(blk, name):
+                f |= bit
+        if on(blk, "ambush"):
+            f |= 8
+        if not on(blk, "single"):
+            f |= 16
+        return f
+
+    verts = [(num(b, "x"), num(b, "y")) for b in blocks["vertex"]]
+    sides = [(num(b, "offsetx"), num(b, "offsety"),
+              tex(b, "texturetop"), tex(b, "texturebottom"),
+              tex(b, "texturemiddle"), num(b, "sector"))
+             for b in blocks["sidedef"]]
+    lines = [{"v1": num(b, "v1"), "v2": num(b, "v2"),
+              "flags": (1 if on(b, "blocking") else 0)
+                       | (4 if on(b, "twosided") else 0),
+              "special": num(b, "special"),
+              # the Doom line tag lives in arg0 in the translated namespace
+              "tag": num(b, "arg0"),
+              "front": num(b, "sidefront") if "sidefront" in b else None,
+              "back": num(b, "sideback") if "sideback" in b else None}
+             for b in blocks["linedef"]]
+    sectors = [{"floor": num(b, "heightfloor"),
+                "ceil": num(b, "heightceiling"),
+                "floor_tex": tex(b, "texturefloor"),
+                "ceil_tex": tex(b, "textureceiling"),
+                "light": num(b, "lightlevel"),
+                "special": num(b, "special"),
+                "tag": num(b, "id")}
+               for b in blocks["sector"]]
+    things = [(num(b, "x"), num(b, "y"), num(b, "angle"), num(b, "type"),
+               flags(b)) for b in blocks["thing"]]
+    return {"things": things, "verts": verts, "sides": sides,
+            "lines": lines, "sectors": sectors}
+
+
 def parse_wad(path: Path) -> dict:
-    data = path.read_bytes()
+    return parse_bytes(path.read_bytes(), str(path))
+
+
+def parse_bytes(data: bytes, label: str = "map") -> dict:
     magic, num, ofs = struct.unpack_from("<4sii", data, 0)
     if magic not in (b"IWAD", b"PWAD"):
-        raise SystemExit("%s: not a WAD" % path)
+        raise SystemExit("%s: not a WAD" % label)
     lumps: dict[str, bytes] = {}
     order: list[str] = []
     for i in range(num):
@@ -110,6 +176,12 @@ def parse_wad(path: Path) -> dict:
         key = nm.rstrip(b"\0").decode("ascii", "replace").upper()
         lumps[key] = data[pos:pos + size]
         order.append(key)
+
+    if "TEXTMAP" in lumps:
+        out = parse_udmf(lumps["TEXTMAP"].decode("ascii"))
+        out["lumps"] = lumps
+        out["order"] = order
+        return out
 
     things = [struct.unpack_from("<hhhHH", lumps["THINGS"], 10 * i)
               for i in range(len(lumps["THINGS"]) // 10)]
@@ -553,6 +625,38 @@ def test_textures(chapters):
               used <= known, "missing %s" % sorted(used - known))
 
 
+def test_format_equivalence(chapters):
+    """UDMF and the binary lumps must describe the same level.
+
+    UDMF is what we ship now; a silent divergence would mean the text map
+    and the binary map stopped being the same place, and every geometry
+    check above would be validating the wrong thing."""
+    print("\n== UDMF 与二进制输出等价 ==")
+    for ch in chapters:
+        m = gen_maps.build_chapter(**{k: v for k, v in ch.items()
+                                      if k != "name"})
+        u = parse_bytes(m.udmf_bytes(ch["name"]), ch["name"] + "_udmf")
+        b = parse_bytes(m.wad_bytes(ch["name"]), ch["name"] + "_bin")
+        name = ch["name"]
+        check("%s: 顶点/边/扇区完全一致" % name,
+              u["verts"] == b["verts"] and u["sides"] == b["sides"]
+              and u["sectors"] == b["sectors"],
+              "v=%d/%d s=%d/%d sec=%d/%d"
+              % (len(u["verts"]), len(b["verts"]), len(u["sides"]),
+                 len(b["sides"]), len(u["sectors"]), len(b["sectors"])))
+        check("%s: 线条数、顶点对、双面与遮挡标志一致" % name,
+              len(u["lines"]) == len(b["lines"])
+              and all((x["v1"], x["v2"], x["flags"], x["front"], x["back"])
+                      == (y["v1"], y["v2"], y["flags"], y["front"], y["back"])
+                      for x, y in zip(u["lines"], b["lines"])))
+        check("%s: 行特殊值与 tag 一致" % name,
+              [(x["special"], x["tag"]) for x in u["lines"]]
+              == [(y["special"], y["tag"]) for y in b["lines"]])
+        check("%s: 物件坐标/朝向/编号/选项位一致" % name,
+              u["things"] == b["things"],
+              "%s vs %s" % (u["things"][:3], b["things"][:3]))
+
+
 def main() -> int:
     chapters = gen_maps.CHAPTERS
     doomed, chain = mapinfo()
@@ -565,6 +669,7 @@ def main() -> int:
         return 2
 
     test_map_chain(chapters, chain, doomed)
+    test_format_equivalence(chapters)
     test_thing_numbers(chapters, doomed, zs)
     test_gate_data(chapters, zs)
     test_stage_tokens(chapters, zs)

@@ -143,7 +143,7 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
 
 | 目录 | 用途 |
 |---|---|
-| `game/` | PK3 工程：ZScript、原生格式地图、字体、图形（含 `sprites/`、`sounds/`）、语言表 |
+| `game/` | PK3 工程：ZScript、UDMF 地图、字体、图形（含 `sprites/`、`sounds/`）、语言表 |
 | `config/` | 配置**模板**（绑定/分辨率/语言），勿手写精简版；引擎改写的是 `build/uzdoom.cfg` |
 | `assets_src/` | 美术/音频/手工地图**源文件**（LFS），含 CREDITS 登记 |
 | `tools/` | 地图/字体生成、构建、打包、测试、环境自检 |
@@ -164,7 +164,9 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
    "Expression must be a modifiable value"。ui 侧状态用 `ui` 字段。
 6. **顶层自由函数不存在**：函数必须挂在类里（static play 方法）。
 7. **struct 赋值/返回未实现** → 用 primitive switch 函数替代 struct 传值。
-8. **地图必须打成 PWAD 磁盘文件**（PK3 内 maps/*.wad 全名查找在 5.0.3 不可靠）。
+8. **地图必须打成 PWAD 磁盘文件**（PK3 内散装 `maps/xxx.map` 在 5.0.3 启动即
+   Access Violation 读 `0x8`；`maps/xxx.wad` 名字查找也不可靠）。UDMF 本身没问题，
+   装进 WAD 的 `TEXTMAP` lump 就行。
 9. **WAD 目录条目顺序**：filepos 在前、size 在后，写反 = 加载即崩。
 10. **纹理/扁平名必须 NUL 填充**（空格填充 → 查不到 → 棋盘格）。
 11. **THINGS 的 type 按有符号 16 位读**：ednum > 32767 变负数，物件被当
