@@ -85,7 +85,11 @@ def main() -> None:
         z.write(GAME / "zscript.txt", "zscript.txt")
         if (GAME / "language" / "language.txt").exists():
             z.write(GAME / "language" / "language.txt", "LANGUAGE")
-        for sub in ("zscript", "fonts", "graphics", "sprites", "sounds"):
+        # textures/flats/patches are read by the engine as image namespaces,
+        # music by MAPINFO's Music field. All four are optional: a checkout
+        # with no custom art still builds.
+        for sub in ("zscript", "fonts", "graphics", "sprites", "sounds",
+                    "textures", "flats", "patches", "music"):
             d = GAME / sub
             if not d.is_dir():
                 continue

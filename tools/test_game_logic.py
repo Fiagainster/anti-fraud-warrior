@@ -729,7 +729,7 @@ def test_map_chain(chapters, chain, doomed):
 def test_textures(chapters):
     print("\n== 贴图/地板名存在性 ==")
     flats, textures = gen_maps.iwad_names()
-    known = flats | textures
+    known = flats | textures | gen_maps.own_tex_names()
     for ch in chapters:
         _m, w = chapter_map(ch)
         used = {s[2] for s in w["sides"]} | {s[3] for s in w["sides"]} \
@@ -737,7 +737,7 @@ def test_textures(chapters):
         used |= {sec["floor_tex"] for sec in w["sectors"]}
         used |= {sec["ceil_tex"] for sec in w["sectors"]}
         used.discard("-")
-        check("%s: 所有贴图/地板名都在 IWAD 里" % ch["name"],
+        check("%s: 所有贴图/地板名都在 IWAD 或自带贴图里" % ch["name"],
               used <= known, "missing %s" % sorted(used - known))
 
 

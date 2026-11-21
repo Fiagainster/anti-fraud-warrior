@@ -1288,7 +1288,7 @@ CHAPTERS = [
          boss_adds=[CACO],
          gate_a=21, gate_b=22),
     dict(name="FZ03", layout="precinct",
-         palette=dict(wall="BROWN1", cwall="STONE2", floor="FLOOR0_3",
+         palette=dict(wall="FZW3WALL", cwall="STONE2", floor="FZF3FLR",
                       ceil="CEIL3_1"),
          enemies1=[SHOTGUNNER, IMP, IMP, IMP, ZOMBIE],
          enemies2=[CACO, CACO, DEMON, DEMON, SHOTGUNNER],
@@ -1347,9 +1347,26 @@ def check_things(ch, m):
 
 
 
+def own_tex_names() -> set:
+    """Names supplied by our own PK3 (game/textures, game/flats).
+
+    The IWAD-only check below is what keeps a typo from shipping as a
+    checkerboard wall. Custom art is legitimate, so the check becomes
+    "IWAD **or** a file we actually ship" - and it stays strict, because a
+    name only counts once the PNG exists."""
+    names = set()
+    for sub in ("textures", "flats"):
+        d = ROOT / "game" / sub
+        if not d.is_dir():
+            continue
+        for p in d.rglob("*.png"):
+            names.add(p.stem.upper())
+    return names
+
+
 def validate(built):
     flats, textures = iwad_names()
-    known = flats | textures
+    known = flats | textures | own_tex_names()
     bad = sorted({n for m in built.values() for n in m.used_names
                   if n not in known and n != "-"})
     if bad:
