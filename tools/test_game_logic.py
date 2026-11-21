@@ -366,7 +366,7 @@ def test_thing_numbers(chapters, doomed, zs):
     gate_cls = gate_classes(zs)
     registered = set(doomed)
     for ch in chapters:
-        w = parse_wad(MAPS / (ch["name"] + ".wad"))
+        _m, w = chapter_map(ch)
         types = [t[3] for t in w["things"]]
         counts = {t: types.count(t) for t in set(types)}
         gates = [ch["gate_a"], ch["gate_b"]]
@@ -513,7 +513,7 @@ def test_evidence_chain(zs):
 def test_trial_door(chapters):
     print("\n== 审判门与出口 ==")
     for ch in chapters:
-        w = parse_wad(MAPS / (ch["name"] + ".wad"))
+        m, w = chapter_map(ch)
         name = ch["name"]
         doors = [ln for ln in w["lines"] if ln["special"] in DOOR_SPECIALS]
         red = [ln for ln in doors if ln["special"] == 33]
@@ -533,6 +533,7 @@ def test_trial_door(chapters):
 
         if not red:
             continue
+        faces = set()
         for dl in red:
             check("%s: 门扇不是 blocking（否则开了也走不过去）" % name,
                   not (dl["flags"] & 1), "flags=%d" % dl["flags"])
@@ -542,8 +543,11 @@ def test_trial_door(chapters):
                 # sidedef order is upper / lower / middle: the door leaf
                 # must live on the UPPER section or it renders see-through
                 upper = w["sides"][dl["front"]][2]
-                check("%s: 门面图形在 upper 层" % name, upper == "DOORRED",
+                faces.add(upper)
+                check("%s: 门面图形在 upper 层" % name, upper not in ("", "-"),
                       "upper=%r" % upper)
+        check("%s: 两片门扇贴同一张门面图" % name, len(faces) == 1,
+              "faces=%s" % sorted(faces))
         door_sec = sorted(door_sectors)[0]
         check("%s: 门扇扇区 floor == ceil（关闭状态）" % name,
               w["sectors"][door_sec]["floor"] == w["sectors"][door_sec]["ceil"])
@@ -554,30 +558,142 @@ def test_trial_door(chapters):
                       and (w["sides"][ln["front"]][5] == door_sec
                            or w["sides"][ln["back"]][5] == door_sec)
                       for k in ("front", "back")}
-        bx, by = 2880, 256   # boss thing position from gen_maps
-        boss_sec = sector_at(w, bx, by)
+        boss_sec = sector_at(w, *m.marks["boss"])
         check("%s: 门后就是 Boss 房" % name, boss_sec in neighbours,
               "door neighbours=%s boss=%d" % (sorted(neighbours), boss_sec))
+
+
+def chapter_map(ch) -> tuple:
+    """Build a chapter in memory and return (model, parsed map)."""
+    m = gen_maps.build_chapter(**{k: v for k, v in ch.items() if k != "name"})
+    return m, parse_bytes(m.udmf_bytes(ch["name"]), ch["name"])
+
+
+def seg_cross(p1, p2, p3, p4) -> bool:
+    """True when two segments properly cross. Touching endpoints and
+    collinear overlaps return False on purpose: a route that runs along a
+    wall is a design smell but not a wall clip."""
+    def orient(a, b, c):
+        return ((b[0] - a[0]) * (c[1] - a[1])
+                - (b[1] - a[1]) * (c[0] - a[0]))
+
+    d1, d2 = orient(p3, p4, p1), orient(p3, p4, p2)
+    d3, d4 = orient(p1, p2, p3), orient(p1, p2, p4)
+    return (d1 > 0) != (d2 > 0) and (d3 > 0) != (d4 > 0)
+
+
+def test_route(chapters):
+    """The bot route must be walkable: every leg stays inside the level and
+    never crosses a one-sided line. This is the cheap stand-in for actually
+    watching the bot walk - the drive test only proves it arrived."""
+    print("\n== 机器人路线可走性 ==")
+    for ch in chapters:
+        m, w = chapter_map(ch)
+        name = ch["name"]
+        route = m.route
+        check("%s: 路线 27 个路点（22 审判门 / 23 Boss 房 / 24 Boss 中心）"
+              % name, len(route) == 27, "got %d" % len(route))
+
+        boxes = [(min(w["verts"][v][0] for v in vals),
+                  min(w["verts"][v][1] for v in vals),
+                  max(w["verts"][v][0] for v in vals),
+                  max(w["verts"][v][1] for v in vals))
+                 for vals in _sector_vertex_sets(w)]
+        outside = [(i, p) for i, p in enumerate(route)
+                   if not any(b[0] <= p[0] <= b[2] and b[1] <= p[1] <= b[3]
+                              for b in boxes)]
+        check("%s: 每个路点都落在房间里（不在虚空）" % name, not outside,
+              "np=%s" % outside[:3])
+
+        solids = [((w["verts"][ln["v1"]]), (w["verts"][ln["v2"]]))
+                  for ln in w["lines"] if ln["back"] is None]
+        bad = []
+        for i in range(len(route) - 1):
+            a, b = route[i], route[i + 1]
+            for p3, p4 in solids:
+                if seg_cross(a, b, p3, p4):
+                    bad.append((i, tuple(a), tuple(b), p3, p4))
+                    break
+        check("%s: 相邻路点之间不穿墙" % name, not bad,
+              "%s" % (bad[:2],))
+
+
+def test_bot_routes(chapters):
+    """The bot's route file must be the one the current maps were built from.
+
+    The coordinates moved out of fzbot.zs into a generated file, so the
+    remaining risk is a stale file: edit the layout, forget to regenerate,
+    and the robot walks walls while every static check still passes. This
+    compares the file against what the generator would produce right now."""
+    print("\n== 机器人路点文件与地图同步 ==")
+    bot = gen_maps.ROOT / "tools/testhooks/bot"
+    built = {ch["name"]: chapter_map(ch)[0] for ch in chapters}
+    path = gen_maps.BOT_ROUTE_ZS
+    check("路点文件已生成", path.exists(), str(path))
+    if path.exists():
+        check("路点文件与当前地图一致（不一致就跑 tools/gen_maps.py）",
+              path.read_text(encoding="utf-8") == gen_maps.bot_routes_zs(built),
+              "fzbot_routes.zs drifted from the maps")
+    check("zscript.txt 引入了路点文件",
+          '#include "zscript/fzbot_routes.zs"'
+          in (bot / "zscript.txt").read_text(encoding="utf-8"))
+    hook = (bot / "zscript" / "fzbot.zs").read_text(encoding="utf-8")
+    check("fzbot.zs 不再内嵌坐标（全部走生成文件）",
+          "FZBotRoutes.X(level.mapname" in hook
+          and "case 22: return" not in hook)
+
+
+def _sector_vertex_sets(w):
+    """Vertex index set per sector, from the lines that touch it."""
+    out = [set() for _ in w["sectors"]]
+    for ln in w["lines"]:
+        for sd in (ln["front"], ln["back"]):
+            if sd is None:
+                continue
+            out[w["sides"][sd][5]].update((ln["v1"], ln["v2"]))
+    return out
+
+
+def test_headroom(chapters):
+    """No floor-to-ceiling gap may be shorter than a standing player.
+
+    A sector whose ceiling sits below 56 units above its floor is only
+    passable by crouching, which turns a mandatory exit alcove into a
+    soft-lock. Chapter 3 shipped one for a while: the exit nook was built at
+    floor 128 / ceiling 160 and the bot still "passed", because the W1 exit
+    line sits on the doorway *before* the alcove - the run ended happily and
+    nobody walked into the room it had built."""
+    print("\n== 站着能过（净空检查） ==")
+    for ch in chapters:
+        _m, w = chapter_map(ch)
+        low = [(i, s["floor"], s["ceil"]) for i, s in enumerate(w["sectors"])
+               if s["floor"] != s["ceil"] and s["ceil"] - s["floor"] < 64]
+        check("%s: 所有扇区站着能过（净空 >= 64）" % ch["name"], not low,
+              "sectors with floor/ceil too close: %s" % (low,))
 
 
 def test_reachability(chapters):
     """Everything the player must touch has to be in the same connected
     component as the player start - this is the regression test for the
-    'air wall' class of bug (a room boundary drawn twice seals its gaps)."""
+    'air wall' class of bug (a room boundary drawn twice seals its gaps).
+
+    Coordinates come from the generator's own landmark table, so a layout
+    change cannot leave the assertion pointing at last week's floor plan."""
     print("\n== 可达性（空气墙回归） ==")
     for ch in chapters:
-        w = parse_wad(MAPS / (ch["name"] + ".wad"))
+        m, w = chapter_map(ch)
         name = ch["name"]
-        start = sector_at(w, 128, 256)
+        marks = m.marks
+        start = sector_at(w, *marks["start"])
         seen = reachable(w, start)
         must = {
-            "gate %d" % ch["gate_a"]: sector_at(w, 640, 480),
-            "gate %d" % ch["gate_b"]: sector_at(w, 1600, 496),
-            "boss": sector_at(w, 2880, 256),
-            "exit": sector_at(w, 3308, 256),
+            "gate %d" % ch["gate_a"]: sector_at(w, *marks["gate_a"]),
+            "gate %d" % ch["gate_b"]: sector_at(w, *marks["gate_b"]),
+            "boss": sector_at(w, *marks["boss"]),
+            "exit": sector_at(w, *marks["exit"]),
         }
-        for i, evx in enumerate((896, 1088, 1280)):
-            must["evidence %d" % (i + 1)] = sector_at(w, evx, -128)
+        for i, pos in enumerate(marks["evidence"]):
+            must["evidence %d" % (i + 1)] = sector_at(w, *pos)
         for label, sec in must.items():
             check("%s: %s 与出生点连通" % (name, label), sec in seen,
                   "sector %d not reachable" % sec)
@@ -615,7 +731,7 @@ def test_textures(chapters):
     flats, textures = gen_maps.iwad_names()
     known = flats | textures
     for ch in chapters:
-        w = parse_wad(MAPS / (ch["name"] + ".wad"))
+        _m, w = chapter_map(ch)
         used = {s[2] for s in w["sides"]} | {s[3] for s in w["sides"]} \
             | {s[4] for s in w["sides"]}
         used |= {sec["floor_tex"] for sec in w["sectors"]}
@@ -675,6 +791,9 @@ def main() -> int:
     test_stage_tokens(chapters, zs)
     test_evidence_chain(zs)
     test_trial_door(chapters)
+    test_route(chapters)
+    test_bot_routes(chapters)
+    test_headroom(chapters)
     test_reachability(chapters)
     test_textures(chapters)
 

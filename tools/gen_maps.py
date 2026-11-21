@@ -46,6 +46,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "game/maps"
+BOT_ROUTE_ZS = ROOT / "tools/testhooks/bot/zscript/fzbot_routes.zs"
 IWAD = ROOT / "vendor/freedoom-0.13.0/freedoom1.wad"
 LOCK_RED = 1
 
@@ -180,6 +181,10 @@ class MapBuilder:
         self.lines = []
         self.things = []
         self.used_names = set()
+        # landmarks the tests and the route generator read instead of
+        # hard-coding coordinates that a layout change would silently break
+        self.marks = {}
+        self.route = []
 
     def vertex(self, x, y):
         key = (x, y)
@@ -312,6 +317,171 @@ class MapBuilder:
         self.line(x0, y, x1, y, front=sd_s, back=sd_n, blocking=False,
                   special=special)
 
+    def side3(self, sector, upper="-", lower="-", middle="-"):
+        """Sidedef with all three sections set. Doorway lines between rooms
+        of different ceiling/floor height need a real texture in the upper /
+        lower slot, otherwise the engine has nothing to draw in the gap."""
+        for name in (upper, lower, middle):
+            self.used_names.add(name)
+        idx = len(self.sides)
+        self.sides.append((0, 0, pad8(upper), pad8(lower), pad8(middle), sector))
+        return idx
+
+    # ------------------------------------------------------ room layout --
+
+    @staticmethod
+    def _edge_pieces(a, b, links, opens):
+        """Split an axis-aligned edge running a->b into wall / link / open
+        pieces, in traversal order.
+
+        links: [(lo, hi, other_sector, special)]  drawn here, two-sided
+        opens: [(lo, hi)]                         left to the neighbour
+        """
+        lo, hi = (a, b) if a <= b else (b, a)
+        cuts = []
+        for l0, l1, other, sp in links:
+            x0, x1 = max(lo, min(l0, l1)), min(hi, max(l0, l1))
+            if x1 > x0:
+                cuts.append((x0, x1, "link", other, sp))
+        for o0, o1 in opens:
+            x0, x1 = max(lo, min(o0, o1)), min(hi, max(o0, o1))
+            if x1 > x0:
+                cuts.append((x0, x1, "open", None, 0))
+        cuts.sort()
+        pieces = []
+        cur = lo
+        for x0, x1, kind, other, sp in cuts:
+            if x0 > cur:
+                pieces.append((cur, x0, "wall", None, 0))
+            pieces.append((x0, x1, kind, other, sp))
+            cur = x1
+        if cur < hi:
+            pieces.append((cur, hi, "wall", None, 0))
+        if b < a:
+            pieces = [(x1, x0, k, o, s) for x0, x1, k, o, s in reversed(pieces)]
+        return pieces
+
+    def room(self, x1, y1, x2, y2, sector, wall, links=None, opens=None):
+        """Draw a rectangular room, drawing every shared edge exactly once.
+
+        links (drawn here, two-sided): {"n"|"s"|"e"|"w": [(lo, hi, other, sp)]}
+        opens (neighbour draws it):    {"n"|"s"|"e"|"w": [(lo, hi)]}
+
+        Splitting walls into pieces per edge is what keeps the old "air wall"
+        bug out: a gap is a *range on one edge drawn once*, not two rooms
+        each punching a hole and hoping they line up."""
+        self.draw_edges({"s": ("h", y1, x2, x1),
+                         "w": ("v", x1, y1, y2),
+                         "n": ("h", y2, x1, x2),
+                         "e": ("v", x2, y2, y1)},
+                        sector, wall, links, opens)
+
+    def chamfer_room(self, x1, y1, x2, y2, cut, sector, wall,
+                     links=None, opens=None):
+        """Rectangular room with all four corners cut at 45 degrees.
+
+        Same links/opens contract as room(). The straight runs are shortened
+        by `cut` at both ends and four diagonal walls close the shape, so the
+        floor is an octagon instead of a box - the cheapest way to make a
+        hall read as a place rather than as a corridor with ambitions.
+
+        Every diagonal's front side faces inward (the direction is chosen so
+        the engine's right-hand rule puts the sidedef in the room)."""
+        c = cut
+        self.draw_edges({"s": ("h", y1, x2 - c, x1 + c),
+                         "e": ("v", x2, y1 + c, y2 - c),
+                         "n": ("h", y2, x1 + c, x2 - c),
+                         "w": ("v", x1, y2 - c, y1 + c)},
+                        sector, wall, links, opens)
+        for p0, p1 in (((x2, y1 + c), (x2 - c, y1)),
+                       ((x2 - c, y2), (x2, y2 - c)),
+                       ((x1, y2 - c), (x1 + c, y2)),
+                       ((x1 + c, y1), (x1, y1 + c))):
+            sd = self.side(sector, wall)
+            self.line(p0[0], p0[1], p1[0], p1[1], front=sd, blocking=True)
+
+    def draw_edges(self, edges, sector, wall, links=None, opens=None):
+        """Draw one room's four axis-aligned edges, piece by piece.
+
+        edges: {"s"|"w"|"n"|"e": (axis, fixed, from, to)} - the direction of
+        each run is chosen so its front sidedef faces into the room."""
+        links = links or {}
+        opens = opens or {}
+        for key, (axis, fixed, a, b) in edges.items():
+            pieces = self._edge_pieces(a, b, links.get(key, []),
+                                       opens.get(key, []))
+            for t0, t1, kind, other, sp in pieces:
+                if kind == "open":
+                    continue
+                if axis == "h":
+                    p0, p1 = (t0, fixed), (t1, fixed)
+                else:
+                    p0, p1 = (fixed, t0), (fixed, t1)
+                if kind == "wall":
+                    sd = self.side(sector, wall)
+                    self.line(p0[0], p0[1], p1[0], p1[1], front=sd,
+                              blocking=True)
+                else:
+                    sd_f = self.side3(sector, wall, wall, "-")
+                    sd_b = self.side3(other, wall, wall, "-")
+                    self.line(p0[0], p0[1], p1[0], p1[1], front=sd_f,
+                              back=sd_b, blocking=False, special=sp)
+
+    def solid_block(self, x1, y1, x2, y2, sector, wall):
+        """Pillar: a closed one-sided loop standing inside `sector`.
+
+        Traversed counter-clockwise so the front sidedefs face outward into
+        the room; the inside of the block stays void, which is what makes it
+        solid to both the player and the line of sight."""
+        pts = [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
+        for i in range(4):
+            ax, ay = pts[i]
+            bx, by = pts[(i + 1) % 4]
+            sd = self.side(sector, wall)
+            self.line(ax, ay, bx, by, front=sd, blocking=True)
+
+    def platform(self, x1, y1, x2, y2, outer, inner, wall):
+        """Raised dais: a four-sided loop between `outer` and `inner`.
+
+        The riser is drawn from the OUTER sector's lower texture - that is
+        the side whose floor is lower, and the engine fills the step gap
+        there."""
+        for (ax, ay), (bx, by) in (((x1, y1), (x2, y1)),
+                                   ((x2, y1), (x2, y2)),
+                                   ((x2, y2), (x1, y2)),
+                                   ((x1, y2), (x1, y1))):
+            sd_f = self.side3(outer, "-", wall, "-")
+            sd_b = self.side3(inner, "-", wall, "-")
+            self.line(ax, ay, bx, by, front=sd_f, back=sd_b, blocking=False)
+
+    def flight(self, x1, y1, x2, y2, n, base, rise, ceil_h, floor, ceil, light,
+               wall):
+        """Straight staircase: n sectors tiled along +y, each `rise` above
+        the one before.
+
+        End edges are deliberately left open - the room at the bottom and the
+        room at the top each draw their own side as a two-sided link, which
+        is the same one-edge-one-owner rule the rectangular rooms follow.
+        Steps of 8-16 units are well under the 24-unit climb limit, so the
+        flight is walkable without any special lines."""
+        depth = (y2 - y1) // n
+        if depth * n != y2 - y1:
+            raise SystemExit("flight: depth %d does not divide into %d steps"
+                             % (y2 - y1, n))
+        secs = [self.sector(base + i * rise, ceil_h, floor, ceil, light)
+                for i in range(n)]
+        for i, s in enumerate(secs):
+            ya, yb = y1 + depth * i, y1 + depth * (i + 1)
+            sd = self.side(s, wall)
+            self.line(x1, ya, x1, yb, front=sd, blocking=True)
+            sd = self.side(s, wall)
+            self.line(x2, yb, x2, ya, front=sd, blocking=True)
+            if i:
+                self.line(x1, ya, x2, ya,
+                          front=self.side3(secs[i - 1], wall, wall, "-"),
+                          back=self.side3(s, wall, wall, "-"), blocking=False)
+        return secs
+
     # D1 doors (open once, STAY open): 31 = BLUE, 32 = yellow, 33 = RED.
     # DR doors (26/27/28) close again after a few seconds, which reads as
     # "the door keeps opening and closing" when the player is slow.
@@ -432,7 +602,68 @@ class MapBuilder:
                          ("VERTEXES", verts), ("SECTORS", secs)])
 
 
-def build_chapter(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
+def build_rooms(m, rooms, conns):
+    """Draw a set of rectangular rooms plus their connections.
+
+    rooms: [dict(sec=, rect=(x1,y1,x2,y2), wall=, extra_opens={})]
+    conns: [(west_or_south, east_or_north, "v"|"h", coord, lo, hi, special)]
+
+    Each connection is declared once and lands on exactly one side: the west
+    room's east edge ("v") or the south room's north edge ("h"). The other
+    room is told that range is somebody else's problem, so no edge is ever
+    drawn twice and no gap can be sealed by accident.
+    """
+    by_sec = {r["sec"]: r for r in rooms}
+    links = {r["sec"]: {} for r in rooms}
+    opens = {r["sec"]: {} for r in rooms}
+
+    def add(bucket, sec, edge, item):
+        bucket[sec].setdefault(edge, []).append(item)
+
+    for a, b, axis, coord, lo, hi, sp in conns:
+        if axis == "v":
+            add(links, a, "e", (lo, hi, b, sp))
+            add(opens, b, "w", (lo, hi))
+        else:
+            add(links, a, "n", (lo, hi, b, sp))
+            add(opens, b, "s", (lo, hi))
+    for r in rooms:
+        sec = r["sec"]
+        if sec not in by_sec:
+            raise SystemExit("room sector %r not in rooms" % (sec,))
+        x1, y1, x2, y2 = r["rect"]
+        for edge, ranges in (r.get("extra_opens") or {}).items():
+            opens[sec].setdefault(edge, []).extend(ranges)
+        for edge, ranges in (r.get("extra_links") or {}).items():
+            links[sec].setdefault(edge, []).extend(ranges)
+        if r.get("chamfer"):
+            m.chamfer_room(x1, y1, x2, y2, r["chamfer"], sec, r["wall"],
+                           links=links[sec], opens=opens[sec])
+        else:
+            m.room(x1, y1, x2, y2, sec, r["wall"],
+                   links=links[sec], opens=opens[sec])
+
+
+LAYOUTS = {"pipeline": None, "legacy": None}   # filled in below
+
+
+def build_chapter(palette, enemies1, enemies2, boss_adds, gate_a, gate_b,
+                  layout="pipeline"):
+    if layout not in LAYOUTS:
+        raise SystemExit("unknown layout %r, expected one of %s"
+                         % (layout, ", ".join(sorted(LAYOUTS))))
+    m = LAYOUTS[layout](palette, enemies1, enemies2, boss_adds,
+                        gate_a, gate_b)
+    # Which waypoint stands at gate A? The retry scenario sends the bot back
+    # there after a wrong answer, and hard-coding "wp 3" is how it ended up
+    # rewinding to an evidence crate once the route changed.
+    m.gate_wp = min(range(len(m.route)),
+                    key=lambda i: ((m.route[i][0] - m.marks["gate_a"][0]) ** 2
+                                   + (m.route[i][1] - m.marks["gate_a"][1]) ** 2))
+    return m
+
+
+def layout_legacy(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     m = MapBuilder()
     wall = palette["wall"]
     cwall = palette["cwall"]
@@ -528,25 +759,535 @@ def build_chapter(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     m.thing(2880, 256, BARON, angle=180)
     for i, t in enumerate(boss_adds):
         m.thing(2560, 64 + i * 192, t, angle=180)
+    m.marks = {
+        "start": (128, 256),
+        "gate_a": (640, 480), "gate_b": (1600, 496),
+        "boss": (2880, 256), "exit": (3308, 256),
+        "evidence": [(896, -128), (1088, -128), (1280, -128)],
+    }
+    m.route = [
+        (128, 256), (460, 256), (640, 256), (640, 470), (640, 256),
+        (780, 256), (1088, 256), (864, -32), (896, -128), (864, -32),
+        (1056, -32), (1088, -128), (1056, -32), (1248, -32), (1280, -128),
+        (1248, -32), (1440, 256), (1584, 256), (1600, 486), (1600, 256),
+        (1728, 256), (2208, 256), (2384, 256), (2512, 256), (2880, 256),
+        (3180, 256), (3308, 256),
+    ]
     return m
 
 
+def layout_pipeline(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
+    """Chapter 1 - "fraud order-brushing abyss": a zig-zag production line.
+
+    A 160-wide spine runs east, turns north, turns east again; work rooms and
+    evidence bays hang off it. Compared with the old single-hall layout the
+    same floor space is cut into 16 sectors with three ceiling heights, so
+    the player reads the level as rooms instead of one big box.
+
+    Layout rules that the rest of the project depends on:
+      * no door line other than the trial door (test_trial_door asserts the
+        ONLY door specials in the map are the two red leaves)
+      * every room boundary is drawn once, on one side of the connection
+      * corridors stay >= 96 wide so the route bot can thread them
+    """
+    m = MapBuilder()
+    wall, cwall = palette["wall"], palette["cwall"]
+    floor, ceil = palette["floor"], palette["ceil"]
+
+    def sec(ceil_h, light, w=wall):
+        return m.sector(0, ceil_h, floor, ceil, light)
+
+    brief = sec(128, 190)
+    cor_a = sec(112, 170)
+    cor_b = sec(112, 160)
+    cor_c = sec(112, 150, cwall)
+    w1 = sec(160, 200)
+    w2 = sec(144, 180)
+    w3 = sec(176, 190)
+    w4 = sec(128, 170)
+    ev1 = sec(96, 215)
+    ev2 = sec(96, 205)
+    ev3 = sec(96, 210)
+    niche_a = sec(96, 220, cwall)
+    niche_b = sec(96, 220, cwall)
+    boss = sec(192, 140)
+    dais = m.sector(16, 192, floor, ceil, 175)
+    nook = sec(128, 220, cwall)
+
+    rooms = [
+        dict(sec=brief, rect=(0, 0, 256, 256), wall=wall),
+        dict(sec=cor_a, rect=(256, 88, 1120, 248), wall=wall),
+        dict(sec=cor_b, rect=(960, 248, 1120, 640), wall=wall),
+        dict(sec=cor_c, rect=(1120, 480, 1600, 640), wall=cwall,
+             extra_opens={"e": [(480, 640)]}),      # trial door sits here
+        dict(sec=w1, rect=(352, 248, 672, 568), wall=wall),
+        dict(sec=w2, rect=(760, -232, 1080, 88), wall=wall),
+        dict(sec=w3, rect=(1150, 640, 1290, 960), wall=wall),
+        dict(sec=w4, rect=(1216, 320, 1536, 480), wall=cwall),
+        dict(sec=ev1, rect=(672, 248, 832, 408), wall=wall),
+        dict(sec=ev2, rect=(400, -8, 560, 88), wall=wall),
+        dict(sec=ev3, rect=(1400, 640, 1540, 736), wall=cwall),
+        dict(sec=niche_a, rect=(620, -8, 700, 88), wall=cwall),
+        dict(sec=niche_b, rect=(1120, 340, 1200, 420), wall=cwall),
+        dict(sec=boss, rect=(1648, 320, 2160, 768), wall=wall,
+             extra_opens={"w": [(480, 640)]}),      # trial door sits here
+        dict(sec=nook, rect=(2160, 480, 2352, 640), wall=cwall,
+             extra_opens={"e": [(480, 640)]}),      # exit switch wall
+    ]
+    conns = [
+        (brief, cor_a, "v", 256, 88, 248, 0),
+        (cor_a, w1, "h", 248, 380, 580, 0),
+        (w1, ev1, "v", 672, 248, 408, 0),
+        (ev2, cor_a, "h", 88, 400, 560, 0),
+        (niche_a, cor_a, "h", 88, 620, 700, 0),
+        (w2, cor_a, "h", 88, 800, 960, 0),
+        (cor_a, cor_b, "h", 248, 960, 1120, 0),
+        (cor_b, niche_b, "v", 1120, 340, 420, 0),
+        (cor_b, cor_c, "v", 1120, 480, 640, 0),
+        (cor_c, w3, "h", 640, 1180, 1260, 0),
+        (cor_c, ev3, "h", 640, 1400, 1540, 0),
+        (w4, cor_c, "h", 480, 1296, 1456, 0),
+        (boss, nook, "v", 2160, 480, 640, 52),
+    ]
+    build_rooms(m, rooms, conns)
+
+    # trial door: the only door in the chapter
+    m.door(1600, 480, 1648, 640, LOCK_RED, sec_west=cor_c, sec_east=boss)
+    # exit switch on the nook's far wall (visual landmark; the actual level
+    # change is the W1 line above, so a missed use-trace cannot soft-lock)
+    sd = m.side(nook, "SW1EXIT")
+    m.line(2352, 640, 2352, 480, front=sd, blocking=True, special=11)
+
+    # pillars: cover without blocking the centre line of each room
+    for box in ((400, 380, 448, 428), (576, 380, 624, 428)):
+        m.solid_block(*box, w1, wall)
+    for box in ((820, -140, 868, -92), (964, -140, 1012, -92)):
+        m.solid_block(*box, w2, wall)
+    m.solid_block(1196, 780, 1244, 828, w3, wall)
+    for box in ((1250, 370, 1298, 418), (1454, 370, 1502, 418)):
+        m.solid_block(*box, w4, cwall)
+    for box in ((1728, 368, 1792, 432), (2016, 368, 2080, 432),
+                (1728, 656, 1792, 720), (2016, 656, 2080, 720)):
+        m.solid_block(*box, boss, wall)
+    m.platform(1776, 448, 2032, 640, boss, dais, wall)
+
+    m.thing(128, 128, PLAYER1_START, angle=0)
+    m.thing(180, 128, ED_BRIEF)
+    m.thing(660, 40, GATE_EDNUM[gate_a])
+    m.thing(1160, 380, GATE_EDNUM[gate_b])
+
+    crates = [(480, 30), (800, 320), (1470, 690)]
+    for cx, cy in crates:
+        m.thing(cx, cy, ED_EVIDENCE)
+    m.thing(520, 30, STIMPACK)
+    m.thing(760, 350, STIMPACK)
+    m.thing(1440, 690, STIMPACK)
+    m.thing(512, 300, SHOTGUN)
+    m.thing(560, 340, SHELLS)
+    m.thing(560, 260, SHELLS)
+    m.thing(900, 40, 2012)          # medikit, w2
+    m.thing(1200, 800, 2012)        # medikit, w3
+    m.thing(1300, 400, 2007)        # clip box, w4
+    m.thing(700, 190, 2007)
+    m.thing(1000, 560, 2018)        # armour, cor_b
+    m.thing(2300, 560, 2007)
+
+    slots = [(430, 500, w1), (620, 500, w1), (600, 280, w1),
+             (860, 60, w2), (1000, 60, w2), (900, -180, w2),
+             (1200, 700, w3), (1220, 900, w3),
+             (1280, 400, w4), (1480, 400, w4),
+             (1040, 420, cor_b), (1250, 600, cor_c)]
+    for i, t in enumerate(enemies1):
+        x, y, _s = slots[i % len(slots)]
+        m.thing(x, y, t, angle=180)
+    for i, t in enumerate(enemies2):
+        x, y, _s = slots[(i + 5) % len(slots)]
+        m.thing(x, y, t, angle=180)
+    m.thing(1900, 544, BARON, angle=180)
+    for i, t in enumerate(boss_adds):
+        m.thing(1740 + i * 260, 520, t, angle=180)
+
+    m.marks = {
+        "start": (128, 128),
+        "gate_a": (660, 40), "gate_b": (1160, 380),
+        "boss": (1700, 560), "exit": (2256, 560),
+        "evidence": crates,
+    }
+    # 27 waypoints, same semantic indices as the legacy route so the test
+    # driver (wp22 = trial door, wp23 = boss room, wp24 = boss centre,
+    # wp25 = exit nook, wp26 = exit switch) keeps working unchanged.
+    # Every leg stays inside one room or crosses a declared opening: the
+    # static test walks these segments and fails on a single wall clip.
+    m.route = [
+        (128, 128),     # 0 spawn
+        (210, 168),     # 1 briefing, heading for the spine
+        (480, 168),     # 2 spine, above evidence bay 1
+        (480, 30),      # 3 evidence 1
+        (480, 168),     # 4 back on the spine
+        (660, 168),     # 5 spine, above the gate-A niche
+        (660, 40),      # 6 gate A terminal
+        (660, 168),     # 7 back on the spine
+        (500, 216),     # 8 work room 1 doorway
+        (512, 300),     # 9 work room 1 (shotgun + first firefight)
+        (660, 360),     # 10 evidence bay 1 doorway, inside work room 1
+        (800, 320),     # 11 evidence 2
+        (660, 360),     # 12 back out of the bay
+        (500, 216),     # 13 out of work room 1, threading the pillar gap
+        (860, 168),     # 14 spine, above work room 2
+        (1040, 180),    # 15 spine, east end
+        (1080, 380),    # 16 north corridor
+        (1160, 375),    # 17 gate B terminal
+        (1080, 380),    # 18 back in the corridor
+        (1080, 600),    # 19 corridor, turning east
+        (1300, 560),    # 20 upper corridor
+        (1470, 690),    # 21 evidence 3, in the bay off the upper corridor
+        (1560, 560),    # 22 trial door face (waits for outside USE)
+        (1700, 560),    # 23 through the door, boss room
+        (1900, 544),    # 24 boss centre, on the dais
+        (2256, 560),    # 25 exit nook
+        (2320, 560),    # 26 exit switch face
+    ]
+    return m
+
+
+def layout_market(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
+    """Chapter 2 - "black-market bazaar": an octagonal hall with six radial
+    stalls, a back loading corridor and a warehouse boss room.
+
+    The point is that it does not read like chapter 1: where the pipeline is
+    long thin rooms in series, this is one tall room you can see across, with
+    booths hanging off it. All stall openings sit on the four straight edges
+    of the chamfered hall, so the connection machinery (`room`/`opens`) is
+    still the only thing drawing shared edges - no diagonal is ever shared
+    with another room, which keeps the "drawn twice" bug out.
+    """
+    m = MapBuilder()
+    wall, cwall = palette["wall"], palette["cwall"]
+    floor, ceil = palette["floor"], palette["ceil"]
+
+    def sec(ceil_h, light, w=wall):
+        return m.sector(0, ceil_h, floor, ceil, light)
+
+    brief = sec(128, 190)
+    cor_in = sec(112, 170)
+    hub = sec(192, 205)
+    hub_dais = m.sector(16, 192, floor, ceil, 195)
+    n1 = sec(144, 200)
+    n2 = sec(144, 185)
+    s1 = sec(136, 180)
+    s2 = sec(136, 215)
+    e1 = sec(152, 190)
+    w1 = sec(128, 210)
+    back = sec(104, 150, cwall)
+    arena = sec(160, 175)
+    boss = sec(192, 140)
+    boss_dais = m.sector(16, 192, floor, ceil, 175)
+    nook = sec(128, 220, cwall)
+
+    rooms = [
+        dict(sec=brief, rect=(0, 512, 256, 768), wall=wall),
+        dict(sec=cor_in, rect=(256, 576, 640, 704), wall=wall),
+        dict(sec=hub, rect=(640, 320, 1600, 1280), wall=wall, chamfer=128),
+        # stalls: the booth walls are metal, the hall is brick - a one-line
+        # reminder of which side of the counter you are standing on
+        dict(sec=n1, rect=(800, 1280, 1040, 1520), wall=cwall,
+             extra_opens={"s": [(800, 1040)]}),
+        dict(sec=n2, rect=(1120, 1280, 1360, 1520), wall=cwall,
+             extra_opens={"s": [(1120, 1360)]}),
+        dict(sec=s1, rect=(800, 80, 1040, 320), wall=cwall,
+             extra_opens={"n": [(800, 1040)]}),
+        dict(sec=s2, rect=(1120, 80, 1360, 320), wall=cwall,
+             extra_opens={"n": [(1120, 1360)]}),
+        dict(sec=e1, rect=(1600, 720, 1888, 960), wall=cwall,
+             extra_opens={"w": [(720, 960)]}),
+        dict(sec=w1, rect=(368, 800, 640, 1040), wall=cwall,
+             extra_opens={"e": [(800, 1040)]}),
+        dict(sec=back, rect=(1600, 448, 2288, 576), wall=cwall,
+             extra_opens={"w": [(448, 576)]}),
+        dict(sec=arena, rect=(2288, 384, 2784, 960), wall=wall,
+             extra_opens={"e": [(608, 736)]}),      # trial door sits here
+        dict(sec=boss, rect=(2832, 320, 3424, 1024), wall=wall,
+             extra_opens={"w": [(608, 736)]}),      # trial door sits here
+        dict(sec=nook, rect=(3424, 608, 3616, 736), wall=cwall,
+             extra_opens={"e": [(608, 736)]}),      # exit switch wall
+    ]
+    conns = [
+        (brief, cor_in, "v", 256, 576, 704, 0),
+        (cor_in, hub, "v", 640, 576, 704, 0),
+        (w1, hub, "v", 640, 800, 1040, 0),
+        (s1, hub, "h", 320, 800, 1040, 0),
+        (s2, hub, "h", 320, 1120, 1360, 0),
+        (hub, n1, "h", 1280, 800, 1040, 0),
+        (hub, n2, "h", 1280, 1120, 1360, 0),
+        (hub, e1, "v", 1600, 720, 960, 0),
+        (hub, back, "v", 1600, 448, 576, 0),
+        (back, arena, "v", 2288, 448, 576, 0),
+        (boss, nook, "v", 3424, 608, 736, 52),
+    ]
+    build_rooms(m, rooms, conns)
+
+    # trial door: the only door in the chapter
+    m.door(2784, 608, 2832, 736, LOCK_RED, sec_west=arena, sec_east=boss)
+    sd = m.side(nook, "SW1EXIT")
+    m.line(3616, 736, 3616, 608, front=sd, blocking=True, special=11)
+
+    # market fixtures: crates along the hall walls, stalls keep their floor
+    # clear so the booths read as walk-in counters
+    for box in ((1400, 400, 1480, 470), (1400, 600, 1480, 670),
+                (1400, 1120, 1480, 1190), (660, 450, 740, 520),
+                (700, 1120, 780, 1190)):
+        m.solid_block(*box, hub, wall)
+    m.platform(860, 600, 1160, 860, hub, hub_dais, wall)
+
+    for box in ((2340, 400, 2400, 470), (2660, 840, 2720, 910)):
+        m.solid_block(*box, arena, wall)
+    for box in ((2900, 380, 2960, 450), (3300, 380, 3360, 450),
+                (2900, 900, 2960, 970), (3300, 900, 3360, 970)):
+        m.solid_block(*box, boss, wall)
+    m.platform(2980, 600, 3280, 760, boss, boss_dais, wall)
+
+    m.thing(128, 640, PLAYER1_START, angle=0)
+    m.thing(180, 640, ED_BRIEF)
+    m.thing(500, 920, GATE_EDNUM[gate_a])
+    m.thing(1240, 1400, GATE_EDNUM[gate_b])
+
+    crates = [(920, 200), (1700, 840), (1950, 512)]
+    for cx, cy in crates:
+        m.thing(cx, cy, ED_EVIDENCE)
+    m.thing(700, 760, SHOTGUN)
+    m.thing(760, 760, SHELLS)
+    m.thing(700, 820, SHELLS)
+    m.thing(940, 240, STIMPACK)
+    m.thing(1290, 240, STIMPACK)
+    m.thing(1740, 900, STIMPACK)
+    m.thing(900, 1180, 2012)        # medikit, hall north
+    m.thing(1450, 620, 2012)        # medikit, hall east
+    m.thing(2500, 500, 2007)        # clip box, arena
+    m.thing(2100, 470, 2007)        # clip box, back corridor
+    m.thing(2560, 800, 2018)        # armour, arena
+    m.thing(3350, 660, 2007)
+    m.thing(3100, 672, BARON, angle=180)
+    for i, t in enumerate(boss_adds):
+        m.thing(2950 + i * 300, 780, t, angle=180)
+
+    slots = [(700, 1100), (900, 1100), (1400, 1100), (700, 500),
+             (1450, 600), (900, 250), (1250, 250), (1750, 900),
+             (1500, 600), (2400, 900), (2600, 450), (1950, 470)]
+    for i, t in enumerate(enemies1):
+        x, y = slots[i % len(slots)]
+        m.thing(x, y, t, angle=180)
+    for i, t in enumerate(enemies2):
+        x, y = slots[(i + 6) % len(slots)]
+        m.thing(x, y, t, angle=180)
+
+    m.marks = {
+        "start": (128, 640),
+        "gate_a": (500, 920), "gate_b": (1240, 1400),
+        "boss": (2900, 672), "exit": (3500, 672),
+        "evidence": crates,
+    }
+    m.route = [
+        (128, 640),     # 0 spawn
+        (300, 640),     # 1 corridor out of the briefing room
+        (560, 640),     # 2 hall doorway
+        (700, 640),     # 3 inside the hall
+        (700, 850),     # 4 west side, in front of the west booth
+        (450, 920),     # 5 gate A, inside the west booth
+        (700, 850),     # 6 back into the hall
+        (920, 600),     # 7 south side of the hall
+        (920, 200),     # 8 evidence 1, south booth
+        (920, 560),     # 9 out of the booth
+        (1240, 700),    # 10 hall centre, on the raised dais
+        (1240, 1180),   # 11 north side of the hall
+        (1240, 1400),   # 12 gate B, north booth
+        (1240, 1180),   # 13 back into the hall
+        (1500, 900),    # 14 east side
+        (1700, 840),    # 15 evidence 2, east booth
+        (1500, 780),    # 16 back into the hall
+        (1500, 512),    # 17 hall east, by the loading corridor
+        (1700, 512),    # 18 loading corridor
+        (1950, 512),    # 19 evidence 3, on the loading dock
+        (2400, 512),    # 20 warehouse floor
+        (2600, 660),    # 21 warehouse centre
+        (2760, 672),    # 22 trial door face (waits for outside USE)
+        (2860, 672),    # 23 through the door, boss warehouse
+        (3100, 672),    # 24 boss centre, on the dais
+        (3500, 672),    # 25 exit nook
+        (3568, 672),    # 26 exit switch face
+    ]
+    return m
+
+
+def layout_precinct(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
+    """Chapter 3 - "the fake police station": two storeys joined by a flight
+    of stairs.
+
+    The briefing hall is deliberately double height (ceiling 256) so the
+    staircase reads as going *up* to somewhere, and the upper storey sits at
+    floor 128 with much lower ceilings - the change in headroom is what
+    makes it feel like a different floor rather than a raised platform.
+
+    The two storeys never overlap in plan: the upper corridor and its rooms
+    are east/north of the hall, and the flight is the only thing that
+    bridges the height difference.
+    """
+    m = MapBuilder()
+    wall, cwall = palette["wall"], palette["cwall"]
+    floor, ceil = palette["floor"], palette["ceil"]
+
+    def sec(floor_h, ceil_h, light, w=wall):
+        return m.sector(floor_h, ceil_h, floor, ceil, light)
+
+    brief = sec(0, 128, 190)
+    hall = sec(0, 256, 200)          # double height: the staircase needs room
+    cells = sec(0, 128, 160, cwall)
+    case = sec(0, 160, 185)
+    u_cor = sec(128, 192, 180)
+    archive = sec(128, 224, 195)
+    interro = sec(128, 224, 210)
+    boss = sec(128, 224, 150)
+    boss_dais = sec(144, 224, 175)
+    nook = sec(128, 224, 220, cwall)
+
+    # eight 16-unit steps = one storey; floors 16..128
+    steps = m.flight(560, 576, 752, 704, 8, 16, 16, 192, floor, ceil, 175,
+                     wall)
+
+    rooms = [
+        dict(sec=brief, rect=(0, 0, 256, 256), wall=wall),
+        dict(sec=hall, rect=(256, 64, 1152, 576), wall=wall,
+             extra_links={"n": [(560, 752, steps[0], 0)]}),
+        dict(sec=cells, rect=(256, -256, 1152, 64), wall=cwall),
+        dict(sec=case, rect=(1152, 160, 1504, 480), wall=wall),
+        dict(sec=u_cor, rect=(560, 704, 1408, 832), wall=wall,
+             extra_links={"s": [(560, 752, steps[-1], 0)]},
+             extra_opens={"e": [(704, 832)]}),      # trial door sits here
+        dict(sec=archive, rect=(704, 832, 1024, 1088), wall=wall),
+        dict(sec=interro, rect=(1088, 832, 1376, 1088), wall=cwall),
+        dict(sec=boss, rect=(1456, 608, 1904, 1088), wall=wall,
+             extra_opens={"w": [(704, 832)]}),      # trial door sits here
+        dict(sec=nook, rect=(1904, 704, 2096, 832), wall=cwall,
+             extra_opens={"e": [(704, 832)]}),      # exit switch wall
+    ]
+    conns = [
+        (brief, hall, "v", 256, 96, 224, 0),
+        (cells, hall, "h", 64, 400, 560, 0),
+        (hall, case, "v", 1152, 240, 400, 0),
+        (u_cor, archive, "h", 832, 704, 896, 0),
+        (u_cor, interro, "h", 832, 1120, 1296, 0),
+        (boss, nook, "v", 1904, 704, 832, 52),
+    ]
+    build_rooms(m, rooms, conns)
+
+    # trial door between the upper gallery and the boss office
+    m.door(1408, 704, 1456, 832, LOCK_RED, sec_west=u_cor, sec_east=boss)
+    sd = m.side(nook, "SW1EXIT")
+    m.line(2096, 832, 2096, 704, front=sd, blocking=True, special=11)
+
+    # lobby columns and a reception desk in the hall
+    for box in ((850, 450, 920, 520), (1010, 200, 1080, 270),
+                (300, 470, 370, 540)):
+        m.solid_block(*box, hall, wall)
+    # cell block: a row of holding cells as dead-end niches is too much
+    # geometry for the payoff, so the cells are one corridor with pillars
+    for box in ((400, -240, 460, -200), (600, -240, 660, -200),
+                (800, -240, 860, -200)):
+        m.solid_block(*box, cells, cwall)
+    for box in ((1520, 620, 1580, 690), (1780, 620, 1840, 690),
+                (1520, 850, 1580, 920), (1780, 850, 1840, 920)):
+        m.solid_block(*box, boss, wall)
+    m.platform(1640, 720, 1760, 816, boss, boss_dais, wall)
+
+    m.thing(128, 128, PLAYER1_START, angle=0)
+    m.thing(180, 128, ED_BRIEF)
+    m.thing(1170, 330, GATE_EDNUM[gate_a])
+    m.thing(1230, 780, GATE_EDNUM[gate_b])
+
+    crates = [(450, -180), (800, 960), (1230, 960)]
+    for cx, cy in crates:
+        m.thing(cx, cy, ED_EVIDENCE)
+    m.thing(500, -100, SHOTGUN)
+    m.thing(560, -100, SHELLS)
+    m.thing(560, -160, SHELLS)
+    m.thing(700, 300, STIMPACK)
+    m.thing(1340, 300, STIMPACK)
+    m.thing(900, -60, 2012)         # medikit, cell block
+    m.thing(1440, 780, 2012)        # medikit, upper gallery
+    m.thing(760, 1000, 2007)        # clip box, archive
+    m.thing(1300, 1030, 2018)       # armour, interrogation room
+    m.thing(1600, 760, 2012)        # medikit, boss office
+    m.thing(1700, 768, BARON, angle=180)
+    for i, t in enumerate(boss_adds):
+        m.thing(1560 + i * 240, 820, t, angle=180)
+
+    slots = [(500, 200), (700, 200), (900, 460), (1000, 300), (600, -120),
+             (900, -120), (1200, 240), (1350, 400), (700, 760), (900, 780),
+             (1150, 900), (1300, 900)]
+    for i, t in enumerate(enemies1):
+        x, y = slots[i % len(slots)]
+        m.thing(x, y, t, angle=180)
+    for i, t in enumerate(enemies2):
+        x, y = slots[(i + 5) % len(slots)]
+        m.thing(x, y, t, angle=180)
+
+    m.marks = {
+        "start": (128, 128),
+        "gate_a": (1170, 330), "gate_b": (1230, 780),
+        "boss": (1600, 768), "exit": (1990, 768),
+        "evidence": crates,
+    }
+    m.route = [
+        (128, 128),     # 0 spawn
+        (230, 160),     # 1 briefing room door
+        (400, 160),     # 2 lobby, west end
+        (400, 340),     # 3 lobby, in front of the cell block
+        (450, -180),    # 4 evidence 1, cell block
+        (700, -180),    # 5 down the cell row
+        (520, -60),     # 6 back to the cell block door
+        (450, 340),     # 7 lobby again
+        (700, 340),     # 8 lobby centre
+        (900, 340),     # 9 lobby east
+        (1200, 320),    # 10 gate A, in the case room
+        (900, 340),     # 11 back into the lobby
+        (560, 540),     # 12 foot of the stairs
+        (656, 600),     # 13 up the flight
+        (656, 660),     # 14 still climbing
+        (720, 780),     # 15 upper gallery
+        (820, 960),     # 16 evidence 2, archive
+        (800, 780),     # 17 back on the gallery
+        (1000, 780),    # 18 gallery
+        (1230, 780),    # 19 gate B
+        (1230, 960),    # 20 evidence 3, interrogation room
+        (1230, 780),    # 21 back on the gallery
+        (1394, 770),    # 22 trial door face (waits for outside USE)
+        (1500, 768),    # 23 through the door, boss office
+        (1700, 768),    # 24 boss centre, on the dais
+        (1990, 768),    # 25 exit nook
+        (2060, 768),    # 26 exit switch face
+    ]
+    return m
+
+
+LAYOUTS.update({"pipeline": layout_pipeline, "market": layout_market,
+                "precinct": layout_precinct, "legacy": layout_legacy})
+
+
 CHAPTERS = [
-    dict(name="FZ01",
+    dict(name="FZ01", layout="pipeline",
          palette=dict(wall="STARTAN2", cwall="COMPSPAN", floor="FLOOR4_8",
                       ceil="CEIL1_2"),
          enemies1=[ZOMBIE, ZOMBIE, ZOMBIE, IMP, IMP],
          enemies2=[SHOTGUNNER, SHOTGUNNER, IMP, IMP],
          boss_adds=[IMP, IMP],
          gate_a=11, gate_b=12),
-    dict(name="FZ02",
+    dict(name="FZ02", layout="market",
          palette=dict(wall="GRAY5", cwall="METAL1", floor="FLOOR5_3",
-                      ceil="CEIL5_1"),
+                      ceil="CEIL3_4"),
          enemies1=[SHOTGUNNER, SHOTGUNNER, DEMON, DEMON, ZOMBIE],
          enemies2=[SHOTGUNNER, SHOTGUNNER, SHOTGUNNER, DEMON, DEMON, DEMON],
          boss_adds=[CACO],
          gate_a=21, gate_b=22),
-    dict(name="FZ03",
+    dict(name="FZ03", layout="precinct",
          palette=dict(wall="BROWN1", cwall="STONE2", floor="FLOOR0_3",
                       ceil="CEIL3_1"),
          enemies1=[SHOTGUNNER, IMP, IMP, IMP, ZOMBIE],
@@ -641,6 +1382,55 @@ def parse_format(argv):
     return fmt
 
 
+def bot_routes_zs(built) -> str:
+    """Render the automation bot's per-chapter route as ZScript.
+
+    The route used to be hand-written into fzbot.zs. Every map reshuffle
+    then silently left the robot walking last week's floor plan - the run
+    still "passed" because the bot just got stuck in a wall and timed out
+    on a route nobody re-read. Generating it from the same model that
+    emits the geometry means a layout change can never drift.
+    """
+    out = [
+        "// fzbot_routes.zs - GENERATED by tools/gen_maps.py, do not edit.",
+        "//",
+        "// Route for the automation bot, one block per chapter keyed on",
+        "// level.mapname. Regenerate with `python tools/gen_maps.py`;",
+        "// tools/test_game_logic.py fails when this file drifts from the maps.",
+        "class FZBotRoutes",
+        "{",
+        "\tstatic int Count(String map)",
+        "\t{",
+    ]
+    for name, m in built.items():
+        out.append('\t\tif (map == "%s") return %d;' % (name, len(m.route)))
+    out += ["\t\treturn 0;", "\t}", ""]
+
+    out += ["\t// waypoint that stands at gate A: the retry scenario walks",
+            "\t// back here after a wrong answer",
+            "\tstatic int GateA(String map)",
+            "\t{"]
+    for name, m in built.items():
+        out.append('\t\tif (map == "%s") return %d;' % (name, m.gate_wp))
+    out += ["\t\treturn 0;", "\t}", ""]
+
+    for fn, idx in (("X", 0), ("Y", 1)):
+        out += ["\tstatic double %s(String map, int i)" % fn, "\t{"]
+        for n, (name, m) in enumerate(built.items()):
+            out.append('\t\t%s (map == "%s")'
+                       % ("if" if n == 0 else "else if", name))
+            out.append("\t\t{")
+            out.append("\t\t\tswitch (i)")
+            out.append("\t\t\t{")
+            for i, p in enumerate(m.route):
+                out.append("\t\t\t\tcase %d: return %d;" % (i, p[idx]))
+            out.append("\t\t\t}")
+            out.append("\t\t}")
+        out += ["\t\treturn 0;", "\t}", ""]
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
 def main(argv=None):
     fmt = parse_format(sys.argv[1:] if argv is None else argv)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -661,6 +1451,10 @@ def main(argv=None):
                  len(m.things), GATE_EDNUM[ch["gate_a"]],
                  GATE_EDNUM[ch["gate_b"]]))
     validate(built)
+
+    BOT_ROUTE_ZS.parent.mkdir(parents=True, exist_ok=True)
+    BOT_ROUTE_ZS.write_text(bot_routes_zs(built), encoding="utf-8")
+    print("%s  %d waypoints" % (BOT_ROUTE_ZS, sum(len(m.route) for m in built.values())))
 
 
 if __name__ == "__main__":

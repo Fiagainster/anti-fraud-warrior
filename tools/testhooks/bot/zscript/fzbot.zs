@@ -30,57 +30,19 @@ class FZBotEvents : EventHandler
 	int stuckSameWp;
 	int stuckWpIdx;
 
-	// ---- route waypoints (identical layout in all three chapters) ------
-	// 0 spawn, 1 brief east, 2 corridor, 3 gateA terminal touch, 4 back,
-	// 5 shotgun, 6 arena center, 7-15 evidence loop, 16 a1 east,
-	// 17 c2, 18 gateB terminal touch, 19 back, 20 a2 entry, 21 a2 center,
+	// ---- route waypoints -----------------------------------------------
+	// The coordinates live in fzbot_routes.zs, generated from the same
+	// model that emits the map geometry. Hand-editing them here is how the
+	// robot ended up walking the previous floor plan after a layout change.
+	// Semantic indices the driver relies on (see WpWait / the USE latch):
 	// 22 trial door face (waits for outside USE), 23 boss room,
-	// 24 boss center, 25 exit nook, 26 exit switch face.
-	double Wpx(int i)
-	{
-		switch (i)
-		{
-			case 0: return 128;   case 1: return 460;
-			case 2: return 640;   case 3: return 640;
-			case 4: return 640;   case 5: return 780;
-			case 6: return 1088;  case 7: return 864;
-			case 8: return 896;   case 9: return 864;
-			case 10: return 1056; case 11: return 1088;
-			case 12: return 1056; case 13: return 1248;
-			case 14: return 1280; case 15: return 1248;
-			case 16: return 1440; case 17: return 1584;
-			case 18: return 1600; case 19: return 1600;
-			case 20: return 1728; case 21: return 2208;
-			case 22: return 2384; case 23: return 2512;
-			case 24: return 2880; case 25: return 3180;
-			case 26: return 3308;
-		}
-		return 0;
-	}
-
-	double Wpy(int i)
-	{
-		switch (i)
-		{
-			case 0: return 256;   case 1: return 256;
-			case 2: return 256;   case 3: return 470;
-			case 4: return 256;   case 5: return 256;
-			case 6: return 256;   case 7: return -32;
-			case 8: return -128;  case 9: return -32;
-			case 10: return -32;  case 11: return -128;
-			case 12: return -32;  case 13: return -32;
-			case 14: return -128; case 15: return -32;
-			case 16: return 256;  case 17: return 256;
-			case 18: return 486;  case 19: return 256;
-			case 20: return 256;  case 21: return 256;
-			case 22: return 256;  case 23: return 256;
-			case 24: return 256;  case 25: return 256;
-			case 26: return 256;
-		}
-		return 0;
-	}
-
-	int WpCount() { return 27; }
+	// 24 boss center, 25 exit nook, 26 exit switch face. Gate A's own
+	// index comes from the generated table too - the retry seam rewinds
+	// there, and a hard-coded index pointed at an evidence crate the last
+	// time the layout changed.
+	double Wpx(int i) { return FZBotRoutes.X(level.mapname, i); }
+	double Wpy(int i) { return FZBotRoutes.Y(level.mapname, i); }
+	int WpCount() { return FZBotRoutes.Count(level.mapname); }
 
 	override void WorldLoaded(WorldEvent e)
 	{
@@ -268,11 +230,17 @@ class FZBotEvents : EventHandler
 		// 4 s per-terminal cooldown is out - paired with fz_autoanswer 3
 		// (wrong on the first visit, correct on the return visit).
 		CVar rt = CVar.FindCVar("fz_bot_retry");
-		if (rt != null && rt.GetInt() == 1 && retries < 4
-			&& wp >= 5 && pl.CountInv("FZStage1") < 1)
+		if (rt != null && rt.GetInt() == 1 && retries < 6
+			&& wp > FZBotRoutes.GateA(level.mapname)
+			&& pl.CountInv("FZStage1") < 1)
 		{
 			retries++;
-			wp = 3;
+			// Two waypoints back, not one: the per-terminal cooldown is
+			// 4 s, and turning around on the spot just bumps the same
+			// terminal while it is still cooling. The extra distance is
+			// what turns the walk into a real second visit.
+			wp = FZBotRoutes.GateA(level.mapname) - 2;
+			if (wp < 0) wp = 0;
 			Console.Printf("FZBOT: retry gate A (#%d)", retries);
 			return;
 		}
