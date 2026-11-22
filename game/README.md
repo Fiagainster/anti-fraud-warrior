@@ -12,7 +12,8 @@
 | `mapinfo/` | MAPINFO：`statusbarclass`、`eventhandlers`、`doomednums`、章节链 | 是 |
 | `menudef/` | 目前只有说明。主菜单靠 `graphics/M_*.png` 覆盖原版补丁，不打进 PK3 | 是 |
 | `acs/` | 预留，当前无 ACS 脚本 | — |
-| `sprites/` `sounds/` | 敌人与拾取物的自制精灵；玩家手持武器不覆盖（`PISG*` / `SHTG*` 走 IWAD），地面拾取 `PISTA0` / `SHOTA0` 是自制版 | — |
+| `sprites/` `sounds/` | 敌人与拾取物的自制精灵；玩家手持武器不覆盖（`PISG*` / `SHTG*` 走 IWAD），地面拾取 `PISTA0` / `SHOTA0` 是自制版。`sounds/` 已有 12 个自制音效（武器 2、拾取 4、门禁/警报 3、菜单 3） | — |
+| `sndinfo/` | SNDINFO：逻辑音名 → `sounds/*.wav` 的映射；并覆盖 `menu/cursor` 等引擎菜单音。打包成 PK3 根目录的 `SNDINFO` | 是 |
 
 打包命令：
 

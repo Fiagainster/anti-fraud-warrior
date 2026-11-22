@@ -431,6 +431,7 @@ class FZPlayEvents : EventHandler
 
 		if (choice == GateCorrect(gid))
 		{
+			pl.A_StartSound("fz/gate_close", CHAN_AUTO);
 			pl.GiveInventory(GateStage(gid), 1);
 			pl.GiveInventory("ArmorBonus", 10); // 防骗盾 +10
 			FZMsgItemBase.Push(pl, GateMsgRight(gid), 300);
@@ -440,6 +441,7 @@ class FZPlayEvents : EventHandler
 		}
 		else
 		{
+			pl.A_StartSound("fz/alarm", CHAN_AUTO);
 			pl.DamageMobj(null, null, GateDmg(gid), 'FZFraud');
 			Ambush(pl, gid);
 			FZMsgItemBase.Push(pl, GateMsgWrong(gid), 340);

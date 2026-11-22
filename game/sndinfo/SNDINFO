@@ -1,0 +1,26 @@
+// 自定义音效表。路径相对 pk3 根目录。
+// 全部由 tools/gen_sfx.py 程序化合成，预听包在 sfx_preview/。
+
+// ---- 玩家武器 ----
+$sound fz/pistol          sounds/fz_pistol.wav
+$sound fz/shotgun         sounds/fz_shotgun.wav
+
+// ---- 拾取 ----
+$sound fz/evidence        sounds/fz_evidence.wav
+$sound fz/ammo            sounds/fz_ammo.wav
+$sound fz/health          sounds/fz_health.wav
+$sound fz/keycard         sounds/fz_keycard.wav
+
+// ---- 审判门 / 警报 ----
+// gate_open：抉择菜单弹出，终端被激活
+// gate_close：回答正确，门禁放行
+// alarm：回答错误，触发伏击
+$sound fz/gate_open       sounds/fz_gate_open.wav
+$sound fz/gate_close      sounds/fz_gate_close.wav
+$sound fz/alarm           sounds/fz_alarm.wav
+
+// ---- 引擎菜单 ----
+// 覆盖 GZDoom 内置菜单音，主菜单与地图内的抉择菜单一起生效。
+$sound menu/cursor        sounds/fz_menu_move.wav
+$sound menu/choose        sounds/fz_menu_ok.wav
+$sound menu/backup        sounds/fz_menu_back.wav

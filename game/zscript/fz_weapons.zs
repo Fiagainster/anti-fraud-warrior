@@ -1,8 +1,9 @@
-// 玩家手感调参：武器伤害与弹药供给。
+// 玩家手感调参：武器伤害、弹药供给与开火音效。
 //
 // 原则和 fz_actors.zs 一样——换皮不换脑子，只改数字：
 //   * 枪械类沿用 Freedoom 的精灵帧（PISG / SHTG），只重写 Fire 状态里的
 //     A_FireBullets 伤害，动画节奏与原版一致。
+//   * 开火音效走 sndinfo/SNDINFO 里登记的 fz/pistol、fz/shotgun。
 //   * 弹药拾取物直接改 Inventory.Amount，地图里的 Clip / Shell 都是同一批
 //     类名，replaces 之后生成时自动换成新数值。
 // 2026-11-22 首版：试玩反馈"太难"，伤害约 ×2，拾取量 ×2，出生自带 100 发
@@ -14,7 +15,11 @@ class FZPistol : Pistol replaces Pistol
 	{
 	Fire:
 		PISG A 4;
-		PISG B 6 A_FireBullets(5.6, 0, 1, 12, "BulletPuff");
+		PISG B 6
+			{
+				A_PlaySound("fz/pistol", CHAN_WEAPON);
+				A_FireBullets(5.6, 0, 1, 12, "BulletPuff");
+			}
 		PISG C 4;
 		PISG B 5 A_ReFire;
 		Goto Ready;
@@ -27,7 +32,11 @@ class FZShotgun : Shotgun replaces Shotgun
 	{
 	Fire:
 		SHTG A 3;
-		SHTG A 7 A_FireBullets(5.6, 0, 7, 9, "BulletPuff");
+		SHTG A 7
+			{
+				A_PlaySound("fz/shotgun", CHAN_WEAPON);
+				A_FireBullets(5.6, 0, 7, 9, "BulletPuff");
+			}
 		SHTG B 5;
 		SHTG C 5;
 		SHTG D 4;
@@ -45,6 +54,7 @@ class FZClip : Clip replaces Clip
 	Default
 	{
 		Inventory.Amount 20;
+		Inventory.PickupSound "fz/ammo";
 	}
 }
 
@@ -53,6 +63,7 @@ class FZClipBox : ClipBox replaces ClipBox
 	Default
 	{
 		Inventory.Amount 100;
+		Inventory.PickupSound "fz/ammo";
 	}
 }
 
@@ -61,6 +72,7 @@ class FZShell : Shell replaces Shell
 	Default
 	{
 		Inventory.Amount 8;
+		Inventory.PickupSound "fz/ammo";
 	}
 }
 
@@ -69,6 +81,25 @@ class FZShellBox : ShellBox replaces ShellBox
 	Default
 	{
 		Inventory.Amount 40;
+		Inventory.PickupSound "fz/ammo";
+	}
+}
+
+// ---------------------------------------------------------------- 医疗
+// 地图里的 2011/2012 是原版 Stimpack / Medikit，替换后只改拾取音。
+class FZStimpack : Stimpack replaces Stimpack
+{
+	Default
+	{
+		Inventory.PickupSound "fz/health";
+	}
+}
+
+class FZMedikit : Medikit replaces Medikit
+{
+	Default
+	{
+		Inventory.PickupSound "fz/health";
 	}
 }
 

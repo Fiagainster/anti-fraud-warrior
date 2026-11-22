@@ -236,6 +236,7 @@ class FZEvidencePickup : Inventory
 	{
 		Height 16;
 		Radius 12;
+		Inventory.PickupSound "fz/evidence";
 		+FLOORCLIP
 		+INVENTORY.UNDROPPABLE
 	}
@@ -270,6 +271,7 @@ class FZMasterProof : Inventory
 	{
 		Height 16;
 		Radius 12;
+		Inventory.PickupSound "fz/keycard";
 		+FLOORCLIP
 		+INVENTORY.UNDROPPABLE
 	}

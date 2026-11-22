@@ -26,6 +26,9 @@ __pycache__/
 # 交付物，几 KB 一张，正常入库。
 /art/source/
 
+# 音效预听包（`python tools/gen_sfx.py` 重出，成品在 game/sounds/）
+/sfx_preview/
+
 # 编辑器与系统
 .vscode/
 .idea/

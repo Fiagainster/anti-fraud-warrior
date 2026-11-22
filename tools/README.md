@@ -17,6 +17,7 @@
 
 | 脚本 | 产物 |
 |---|---|
+| `gen_sfx.py` | `sfx_preview/` 预听包（武器 / 拾取 / 门禁 / 菜单），纯 numpy 合成，无外部素材；选定后手工拷进 `game/sounds/` |
 | `gen_maps.py` | `game/maps/FZ01-03.wad`（vanilla 二进制 PWAD），并对照 IWAD 校验纹理名 |
 | `gen_font.py` | `game/fonts/fzfont*`（305 字 × 8 色预着色图集） |
 | `gen_menu_patches.py` | `game/graphics/M_*.png`（中文主菜单按钮） |

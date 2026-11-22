@@ -83,6 +83,8 @@ def main() -> None:
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(GAME / "mapinfo" / "MAPINFO", "MAPINFO")
         z.write(GAME / "zscript.txt", "zscript.txt")
+        if (GAME / "sndinfo" / "SNDINFO").exists():
+            z.write(GAME / "sndinfo" / "SNDINFO", "SNDINFO")
         if (GAME / "language" / "language.txt").exists():
             z.write(GAME / "language" / "language.txt", "LANGUAGE")
         # textures/flats/patches are read by the engine as image namespaces,

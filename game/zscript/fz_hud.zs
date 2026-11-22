@@ -106,6 +106,7 @@ class FZStatusBar : BaseStatusBar
 		let m = new("FZChoiceMenu");
 		m.Setup(lock.GateId);
 		m.ActivateMenu();
+		mo.A_StartSound("fz/gate_open", CHAN_AUTO);
 	}
 
 	// -- message banner -----------------------------------------------------
