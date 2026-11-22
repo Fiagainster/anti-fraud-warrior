@@ -287,16 +287,19 @@ class FZPlayEvents : EventHandler
 
 	private name GateAmb(int gid)
 	{
+		// Must be our own classes, not the IWAD names: Ambush() spawns with
+		// NO_REPLACE (we do not want the map's corpse/replacement bookkeeping),
+		// and a raw 'DoomImp' would then appear with the original Freedoom look.
 		switch (gid)
 		{
-			case 11: return 'ZombieMan';
-			case 12: return 'ShotgunGuy';
-			case 21: return 'DoomImp';
-			case 22: return 'DoomImp';
-			case 31: return 'ShotgunGuy';
-			case 32: return 'Cacodemon';
+			case 11: return 'FZShill';
+			case 12: return 'FZRunner';
+			case 21: return 'FZScalper';
+			case 22: return 'FZScalper';
+			case 31: return 'FZRunner';
+			case 32: return 'FZFakeCop';
 		}
-		return 'ZombieMan';
+		return 'FZShill';
 	}
 
 	private int GateAmbCount(int gid)
