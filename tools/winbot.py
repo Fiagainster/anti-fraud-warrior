@@ -192,6 +192,12 @@ def focus(hwnd: int) -> bool:
 
 
 KEYEVENTF_SCANCODE = 0x0008
+KEYEVENTF_EXTENDEDKEY = 0x0001
+
+# 键盘上"存在两份"的键：方向键 / Home 组 / 小键盘除号与回车。它们靠 E0
+# 前缀区分，缺了前缀 SDL 会认出小键盘那一个。
+EXTENDED_VK = {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E,
+               0x5B, 0x5C, 0x6F, 0x90, 0xA3, 0xA5}
 
 
 def _send_key(vk: int, up: bool = False, scan: int | None = None) -> int:
@@ -203,10 +209,18 @@ def _send_key(vk: int, up: bool = False, scan: int | None = None) -> int:
     the console key): MapVirtualKeyW happily returns a code, but on some
     layouts the resulting event never reaches SDL as SDL_SCANCODE_GRAVE,
     so the console silently refuses to open. 0x29 is the physical key.
+
+    Arrow keys (and the six-key block) exist twice on a PC keyboard: the
+    dedicated pad and the numeric keypad. They are told apart by the E0
+    prefix, which SendInput only emits when KEYEVENTF_EXTENDEDKEY is set.
+    Without it SDL sees NumPad4 instead of Left, and "turn around" silently
+    does nothing - which used to make every screenshot face the same way.
     """
     if scan is None:
         scan = user32.MapVirtualKeyW(vk, 0) & 0xFF
     flags = KEYEVENTF_SCANCODE | (KEYEVENTF_KEYUP if up else 0)
+    if vk in EXTENDED_VK:
+        flags |= KEYEVENTF_EXTENDEDKEY
     inp = INPUT()
     inp.type = INPUT_KEYBOARD
     inp.u.ki = KEYBDINPUT(0, scan, flags, 0, None)

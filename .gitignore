@@ -22,6 +22,10 @@ __pycache__/
 /D__fztest/
 *.log
 
+# 2K 生成草稿（每张 150-250KB，可由 生图/pixelpipe 重出）。母版 art/sprites/ 才是
+# 交付物，几 KB 一张，正常入库。
+/art/source/
+
 # 编辑器与系统
 .vscode/
 .idea/
@@ -31,3 +35,6 @@ desktop.ini
 
 # AI 助手的工作区数据（记忆、日志），不属于仓库内容
 /.workbuddy/
+
+# 文档的 PDF 导出（由 .md 生成，用于外发；入库会和源文件双份漂移）
+/docs/*.pdf

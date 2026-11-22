@@ -30,6 +30,20 @@ NAME_RE = re.compile(r"^([A-Z][A-Z0-9]{3})([A-Z])([0-8])$")
 CELL = 72
 PAD = 6
 
+# "踩到底边"只对站在地上的东西有意义。这两类不该按同一把尺子量：
+#   * 第一人称武器贴在屏幕右下角，跟地面没有任何关系；
+#   * 火球/爆炸/烟雾永远在空中。
+# 漏掉它们会让体检表被一堆假 FAIL 淹掉，真问题反而看不见。
+NO_FOOT = {
+    "PISG", "SHTG", "CHGG", "MISG", "PLSG", "BFGG", "SAWG",   # 手上的枪
+    "BAL1", "BAL2", "BAL7", "PUFF", "PLSS", "PLSE", "MISL",   # 空中的弹与烟
+    "BFS1", "TFOG", "FATB", "MANB", "BAL3", "BAL4", "BAL5", "BAL6",
+}
+# 人形怪必须踩地：悬空 2 像素以上就会被玩家看出来在飘。
+FIGURE_TOL = 2
+# 地上的道具（钥匙、背包、弹药）留一点透明底边是正常的，原版也这么画。
+PROP_TOL = 6
+
 
 def parse(path: Path):
     m = NAME_RE.match(path.stem.upper())
@@ -55,7 +69,13 @@ def scan():
         alpha = im.split()[3]
         bbox = alpha.getbbox()
         margin = h - bbox[3] if bbox else h
-        if margin > 2:
+        if name in NO_FOOT:
+            tol = None                     # 不适用，跳过
+        elif name.startswith("FZ"):
+            tol = FIGURE_TOL
+        else:
+            tol = PROP_TOL
+        if tol is not None and margin > tol:
             problems.append("%s: figure floats %d px above the bottom edge"
                             % (p.name, margin))
         rows.append((name, frame, rot, w, h, margin, str(p)))
@@ -69,8 +89,9 @@ def cmd_check() -> int:
         return 0
     print("%-6s %-5s %-4s %-9s %s" % ("NAME", "FRAME", "ROT", "SIZE", "FOOT"))
     for name, frame, rot, w, h, margin, _p in rows:
-        print("%-6s %-5s %-4d %-9s %d" % (name, frame, rot, "%dx%d" % (w, h),
-                                          margin))
+        foot = "-" if name in NO_FOOT else str(margin)
+        print("%-6s %-5s %-4d %-9s %s" % (name, frame, rot, "%dx%d" % (w, h),
+                                          foot))
     by_name: dict[str, list[str]] = {}
     for name, frame, rot, *_ in rows:
         by_name.setdefault(name, []).append(frame)

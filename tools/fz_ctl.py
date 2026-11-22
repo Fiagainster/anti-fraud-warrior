@@ -593,26 +593,23 @@ def sc_gate() -> list:
 
 
 def sc_actor() -> list:
-    """美术管线验收：把自制怪物当场召唤出来看一眼。
+    """美术验收：原地召唤，转一圈看。
 
-    只有三件事要证明，全是"看不见就不知道坏没坏"的那类：精灵能被找到
-    （否则引擎画的是问号），行走帧能播（States 接错就僵在第一帧），死
-    亡帧能落到尸体（A_NoBlocking 漏了会留一堵看不见的墙）。
-
-    召唤走命令行（`post`），不走控制台：往里敲 `~` 再敲命令，按键会整串
-    漏到游戏里，玩家会自己走起来撞终端。命令行是引擎自己执行的，稳。
-
-    这个场景用 -nomonsters 清场，只留手动召唤的那几只当样本，否则关卡
-    自带的敌人会一起冲上来把画面糊住。
+    地图自带的怪物会一边追一边贴脸，拍不到全身，所以这里用 -nomonsters
+    清场、只留手动召唤的那几只当模特：玩家不动，怪物会自己走过来，四张
+    图覆盖四个朝向，总有一张能看清。
     """
+    return []
+
+
+def steps_actor() -> list:
     return [
-        ("wait", 5.0), ("shot", "20_actor_idle"),
-        # 站住不动，让它自己 A_Look -> A_Chase 走过来，看行走帧有没有换
-        ("wait", 2.5), ("shot", "21_actor_chase"),
-        # 正前方近距离点几枪：能打死就说明 Death 状态接对了，尸体不会
-        # 变成一堵看不见的墙
-        ("key", "ctrl", 2.0), ("wait", 1.5), ("shot", "22_actor_dead"),
-        ("shot", "99_final"),
+        ("wait", 2.5), ("shot", "40_a"),
+        # 召唤点就在玩家脚下，站着不动只能拍到脸。先倒退几步把距离拉开，
+        # 才能看清整只怪是不是站在地板上。
+        ("key", "down", 2.6), ("wait", 0.5), ("shot", "40_b"),
+        ("key", "left", 0.8), ("wait", 0.5), ("shot", "40_c"),
+        ("key", "left", 0.8), ("wait", 0.5), ("shot", "40_d"),
     ]
 
 
@@ -641,8 +638,10 @@ SCENARIOS = {
     # 完成之后才执行（+ 命令按出现顺序跑）。
     "actor": (sc_actor, dict(bot=0, monsters=False,
                              post=["+god",
-                                   "+summon", "FZShill",
-                                   "+summon", "FZShill"])),
+                                   "+summon", "FZChairman",
+                                   "+summon", "FZScalper",
+                                   "+summon", "FZShill"],
+                             post_steps=steps_actor())),
     "menu": (None, dict(bot=1, stop=4, timeout=60, monsters=False,
                         want_routes=1, deadline=50, answer=False)),
     "door": (None, dict(bot=1, stop=24, timeout=110, monsters=False,
@@ -681,6 +680,30 @@ SCENARIOS = {
     # monsters`: synthetic console keys do not reliably reach SDL's raw
     # input in this harness, and the seam goes through the exact same
     # DamageMobj path a player's shotgun would.
+    # 只看不打的场景：怪物全留、Boss 不杀、玩家无敌，机器人走到 Boss 房中央
+    # 停住。用来人眼确认"新美术在引擎里长什么样"，跑不跑通关不重要。
+    "show": (None, dict(bot=0, monsters=True,
+                        extra=["+set", "fz_bot_god", "1"],
+                        # 玩家不走路、怪也不追：走廊里按远近排了六只（见
+                        # gen_maps 里的 TEMP 段），+notarget 让它们原地站着。
+                        # 让 bot 走路的话它一路开枪，走到哪儿哪儿只剩尸体。
+                        post=["+notarget"],
+                        post_steps=[
+                            # 开场简报是挂在玩家身上的 FZMsg，340 tic（约
+                            # 9.7 秒）自己销毁。那三行大字正好压在画面中央
+                            # 的怪身上，不等它过期等于没拍。合成按键在这里
+                            # 不可靠，所以是"等"而不是"按掉"。
+                            # 后三张靠方向键转身换角度，但合成出来的扩展键
+                            # 偶尔会被 SDL 丢掉，转不动时四张是同一帧——不
+                            # 算失败，只是少几个角度。
+                            ("wait", 13.0), ("shot", "30_arrive"),
+                            ("key", "left", 0.6), ("wait", 0.4),
+                            ("shot", "31_face2"),
+                            ("key", "left", 0.6), ("wait", 0.4),
+                            ("shot", "32_face3"),
+                            ("key", "left", 0.6), ("wait", 0.4),
+                            ("shot", "33_face4"),
+                        ])),
     "boss": (None, dict(bot=1, stop=-1, combat=1, timeout=110,
                         monsters=True, want_routes=1, deadline=200,
                         fire=True, extra=["+set", "fz_autoanswer", "1",
@@ -731,6 +754,9 @@ def run(scenario: str, mapname: str | None = None) -> int:
     fire = opts.pop("fire", False)
     answer = opts.pop("answer", True)
     after_route = opts.pop("after_route", 0.0)
+    # 机器人停下之后还要做的事（转身、补拍）。给"看美术"的场景用：走到
+    # 房间中央时怪物常在身后，不转一下就只能拍到空房间。
+    post_steps = opts.pop("post_steps", None)
     opts.pop("kill_boss", None)           # legacy flag, replaced by the seam
     expect_locked = opts.pop("expect_locked", False)
     stop_on = opts.pop("stop_on", "")
@@ -744,29 +770,33 @@ def run(scenario: str, mapname: str | None = None) -> int:
           + (f" on {mapname}" if mapname else ""))
     winbot.SHOT_DIR = SHOTS
     ok = False
+
+    def run_steps(steps) -> None:
+        for step in steps:
+            op = step[0]
+            if op == "wait":
+                end = time.time() + step[1]
+                while time.time() < end:
+                    err = fatal_now()
+                    if err:
+                        raise RuntimeError("engine fatal:\n" + err)
+                    time.sleep(0.3)
+            elif op == "key":
+                winbot.focus(hwnd)
+                winbot.hold_key(step[1], step[2])
+            elif op == "tap":
+                winbot.focus(hwnd)
+                winbot.tap(step[1])
+            elif op == "console":
+                winbot.console_cmd(hwnd, step[1])
+            elif op == "shot":
+                winbot.capture(hwnd, SHOTS / f"{step[1]}.png")
+            else:
+                raise ValueError(f"unknown op {op!r}")
+
     try:
         if stepfn is not None:
-            for step in stepfn():
-                op = step[0]
-                if op == "wait":
-                    end = time.time() + step[1]
-                    while time.time() < end:
-                        err = fatal_now()
-                        if err:
-                            raise RuntimeError("engine fatal:\n" + err)
-                        time.sleep(0.3)
-                elif op == "key":
-                    winbot.focus(hwnd)
-                    winbot.hold_key(step[1], step[2])
-                elif op == "tap":
-                    winbot.focus(hwnd)
-                    winbot.tap(step[1])
-                elif op == "console":
-                    winbot.console_cmd(hwnd, step[1])
-                elif op == "shot":
-                    winbot.capture(hwnd, SHOTS / f"{step[1]}.png")
-                else:
-                    raise ValueError(f"unknown op {op!r}")
+            run_steps(stepfn())
         # NOTE: no console injection here. Synthetic `~`/Escape events do
         # not reliably reach SDL raw input in this harness (the console
         # silently refuses to open), so every need is met by an in-engine
@@ -785,6 +815,8 @@ def run(scenario: str, mapname: str | None = None) -> int:
                 winbot.capture(hwnd, SHOTS / "99_final.png")
             except Exception as e:  # noqa: BLE001
                 print(f"final capture failed: {e}")
+        if post_steps:
+            run_steps(post_steps)
         quit_engine(hwnd, proc, fh)
     except Exception as exc:
         proc.kill()

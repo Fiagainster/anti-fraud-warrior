@@ -474,7 +474,13 @@ class FZPlayEvents : EventHandler
 
 	override void WorldThingDied(WorldEvent e)
 	{
-		if (e.Thing == null || e.Thing.GetClassName() != 'BaronOfHell') return;
+		if (e.Thing == null) return;
+		// 章节 Boss 被打倒：掉主谋证据。
+		// 怪物已换成自制类（fz_actors.zs 里 FZChairman replaces BaronOfHell），
+		// 类名不再叫 BaronOfHell，所以两个名字都要认；只删掉旧的判断会让
+		// 结局永远不触发。
+		name cls = e.Thing.GetClassName();
+		if (cls != 'BaronOfHell' && cls != 'FZChairman') return;
 		// chapter boss downed: drop the master proof
 		Actor.Spawn("FZMasterProof", e.Thing.Pos, NO_REPLACE);
 		for (int i = 0; i < MAXPLAYERS; i++)

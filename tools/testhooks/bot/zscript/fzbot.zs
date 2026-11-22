@@ -108,6 +108,29 @@ class FZBotEvents : EventHandler
 		}
 	}
 
+	// every non-player thing inside `r` units, monsters included. The
+	// NearbyProbe above only walks three fixed tids, which is enough to spot
+	// a stuck gate but blind to whether a monster is actually there - and
+	// "screenshot shows nothing" has to be told apart from "nothing spawned".
+	void DumpAround(Actor pl, int r)
+	{
+		// BlockThingsIterator.Next() returns bool and parks the actor in
+		// `thing`; it is not an enumerator like ActorIterator.
+		BlockThingsIterator it = BlockThingsIterator.Create(pl, r);
+		int n = 0;
+		while (it.Next())
+		{
+			Actor a = it.thing;
+			if (a != pl)
+			{
+				Console.Printf("FZBOT: dump %s at (%.0f, %.0f) z %.0f hp %d",
+					a.GetClassName(), a.Pos.X, a.Pos.Y, a.Pos.Z, a.health);
+				n++;
+			}
+		}
+		Console.Printf("FZBOT: dump count %d within %d", n, r);
+	}
+
 	override void WorldTick()
 	{
 		if (!armed) return;
@@ -167,12 +190,21 @@ class FZBotEvents : EventHandler
 		int stopWp = -1;
 		CVar sc = CVar.FindCVar("fz_bot_stop");
 		if (sc != null && sc.GetInt() > 0) stopWp = sc.GetInt();
-		if (stopWp >= 0 && wp >= stopWp)
+		// `wp` is the waypoint we are walking TOWARDS, so `wp >= stopWp` stops
+		// one leg short of the requested index. Stopping at the node itself
+		// needs `wp > stopWp`: the index only advances once the node is reached.
+		if (stopWp >= 0 && wp > stopWp)
 		{
 			if (!routeDone)
 			{
 				routeDone = true;
 				Console.Printf("FZBOT: stop at wp %d pos (%.0f, %.0f)", wp, pl.Pos.X, pl.Pos.Y);
+				DumpAround(pl, 512);
+				// 停下就冻住全场：怪物会一路追着玩家贴脸，截图里只剩一
+				// 块色块。冻结后它们保持停下那一刻的位置，转一圈能拍到
+				// 全身。只在 fz_bot_freeze=1 时生效，别的场景照常跑。
+				CVar fz = CVar.FindCVar("fz_bot_freeze");
+				if (fz != null && fz.GetInt() == 1) level.frozen = true;
 				LevelLocals.MakeScreenShot();
 			}
 			return;
