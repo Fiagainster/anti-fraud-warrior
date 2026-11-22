@@ -35,13 +35,27 @@ ENGINE_FILES = [
 ]
 
 RUN_BAT = """@echo off
-setlocal
+setlocal EnableExtensions
 rem Keep this file pure ASCII: cmd.exe parses .bat in the system code page.
-cd /d "%~dp0"
+rem Never trust the caller's working directory: anchor everything on %~dp0.
 
-if not exist "uzdoom.exe" goto missing
-if not exist "freedoom1.wad" goto missing
-if not exist "fanzha-demo.pk3" goto missing
+set "HERE=%~dp0"
+pushd "%HERE%" 2>nul
+if errorlevel 1 goto nodir
+
+rem Double-clicking run.bat from inside a zip preview makes Explorer extract
+rem only this .bat to a temp folder, so every game file looks "missing".
+if /i not "%HERE%"=="%HERE:AppData\\Local\\Temp=%" goto inzip
+
+set "STOP="
+call :need "uzdoom.exe"      "game engine"
+call :need "freedoom1.wad"   "game data"
+call :need "fanzha-demo.pk3" "game content"
+call :need "uzdoom.cfg"      "default settings"
+call :need "maps\\FZ01.wad"   "chapter 1"
+call :need "maps\\FZ02.wad"   "chapter 2"
+call :need "maps\\FZ03.wad"   "chapter 3"
+if defined STOP goto missing
 
 rem uzdoom.cfg is a read-only template. The engine rewrites the file it is
 rem handed via -config, so play on a copy - delete fz-settings.cfg to reset.
@@ -52,11 +66,45 @@ start "" "uzdoom.exe" -config "fz-settings.cfg" -iwad "freedoom1.wad" ^
  -file "fanzha-demo.pk3" ^
  +set vid_fullscreen 0 +set vid_defwidth 1280 +set vid_defheight 720 ^
  +set language "zh-Hans" +set gl_texture_filter 0
+if errorlevel 1 goto nocreate
+popd
 exit /b 0
 
-:missing
-echo [Anti-Fraud Warrior] Files missing. Re-extract the whole package.
+:need
+if exist "%~1" exit /b 0
+echo   missing: %~1  (%~2)
+echo     expected at %HERE%%~1
+set "STOP=1"
+exit /b 0
+
+:inzip
+echo [Anti-Fraud Warrior] This window runs from a temporary folder inside the ZIP.
+echo Please EXTRACT the whole ZIP to a normal folder, then double-click run.bat there.
 pause
+popd
+exit /b 1
+
+:nodir
+echo [Anti-Fraud Warrior] Cannot open the folder that holds this file:
+echo   %HERE%
+echo Try extracting to a simple path such as D:\\fanzha and run again.
+pause
+exit /b 1
+
+:missing
+echo.
+echo [Anti-Fraud Warrior] Files missing. Re-extract the whole package.
+echo If ONLY uzdoom.exe is reported, an antivirus (Defender / 360 / Huorong)
+echo probably quarantined it: restore it from the quarantine list, whitelist
+echo this folder, then run run.bat again. Details in README.txt.
+pause
+popd
+exit /b 1
+
+:nocreate
+echo [Anti-Fraud Warrior] uzdoom.exe could not start. See README.txt.
+pause
+popd
 exit /b 1
 """
 
@@ -67,7 +115,19 @@ README = """反诈战士 · 三章试玩版 v0.1
 
 启动
 ----
-双击 run.bat（窗口 1280x720）。标题画面按回车 → 选章节 → 开始。
+1. 先把整个 zip 完整解压到一个普通文件夹（例如 D:\fanzha-demo），
+   不要在压缩包预览窗口里直接双击 run.bat。
+2. 双击 run.bat（窗口 1280x720）。标题画面按回车 → 选章节 → 开始。
+
+打不开？
+--------
+- 窗口提示 This window runs from a temporary folder inside the ZIP：
+  说明是在压缩包里直接双击的，先完整解压再运行。
+- 窗口提示 Files missing / 只缺 uzdoom.exe：多半是杀毒软件（Windows
+  Defender / 360 / 火绒）把引擎当可疑程序隔离了。到隔离区恢复该文件、
+  把解压目录加入信任，再双击 run.bat。
+- 没反应也没报错：确认解压目录能写入（不要放在 Program Files 下），
+  或换一个简单路径重试。
 
 操作
 ----
