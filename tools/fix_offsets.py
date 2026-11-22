@@ -34,6 +34,9 @@ WEAPONS = {"PISG", "SHTG", "CHGG", "MISG", "PLSG", "BFGG", "SAWG"}
 # 火球/爆炸/烟：没有"脚"，水平和垂直都居中即可。
 AIMLESS = {"BAL1", "BAL2", "BAL7", "PUFF", "PLSS", "PLSE", "MISL", "BFS1",
            "TFOG", "FATB", "MANB", "BAL3", "BAL4", "BAL5", "BAL6"}
+# 只有这六套骨架是"人形"，要按 top=h-4 埋脚。别用 `startswith("FZ")` 判断：
+# FZGT/FZEV/FZPF 也是 FZ 开头，但它们是摆在地上的道具，得按 top=h。
+MONSTERS = {"FZFR", "FZRN", "FZSC", "FZBK", "FZCP", "FZCH"}
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
 
 
@@ -106,7 +109,7 @@ def desired_offset(name: str, w: int, h: int) -> tuple[int, int]:
         return w // 2 - VW_CENTER, h - WEAPON_BOTTOM_ROW
     if name in AIMLESS:
         return w // 2, h // 2
-    if name.startswith("FZ"):
+    if name in MONSTERS:
         # 人形怪：原版统一是 top = h-4，脚多半档埋进地板，站着才不像飘。
         return w // 2, h - FIGURE_SINK
     # 地上道具：top = h，图片底边正好落在原点（原版 MEDI/CLIP/STIM 都是 top=h）。

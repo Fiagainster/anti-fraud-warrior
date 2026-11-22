@@ -64,7 +64,7 @@ ED_BRIEF = 3932
 
 # Engine ednums we place. Keep names explicit: 4 is "player 4 start" and 8
 # is "Backpack", both of which load without a single warning and quietly
-# leave the arena empty (a backpack even looks like our evidence crate).
+# leave the arena empty.
 ZOMBIE = 3004
 SHOTGUNNER = 9
 IMP = 3001
@@ -79,7 +79,8 @@ PLAYER1_START = 1
 MONSTER_SET = {ZOMBIE, SHOTGUNNER, IMP, DEMON, BARON, CACO}
 
 # ednums that must never show up as a monster: multi-player starts and the
-# backpack (it is also the placeholder sprite of FZEvidencePickup).
+# backpack (its sprite used to be FZEvidencePickup's placeholder; the crate
+# now has real art, but the ednum is still a silent way to get an empty map).
 FORBIDDEN_EDNUM = {2: "player 2 start", 3: "player 3 start",
                    4: "player 4 start", 8: "Backpack",
                    11: "deathmatch start 1", 12: "deathmatch start 2",

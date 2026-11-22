@@ -178,7 +178,7 @@ class FZGateTerminal : Inventory abstract
 	States
 	{
 	Spawn:
-		ARM1 A -1 Bright;
+		FZGT A -1 Bright;
 		Stop;
 	}
 
@@ -228,7 +228,8 @@ class FZGate32 : FZGateTerminal { override int GateId() const { return 32; } }
 // --------------------------------------------------------- pickups ------
 
 // Evidence crate: gives evidence count + the RedCard "证据链" key that opens
-// the trial gate. Sprite is a placeholder (backpack) until Blender art lands.
+// the trial gate. Sprite is a placeholder drawn by tools/gen_props.py; the
+// final art replaces art/sprites/FZEV/A.png and keeps the same name.
 class FZEvidencePickup : Inventory
 {
 	Default
@@ -241,7 +242,7 @@ class FZEvidencePickup : Inventory
 	States
 	{
 	Spawn:
-		BPAK A -1 Bright;
+		FZEV A -1 Bright;
 		Stop;
 	}
 
@@ -275,7 +276,7 @@ class FZMasterProof : Inventory
 	States
 	{
 	Spawn:
-		BKEY A -1 Bright;
+		FZPF A -1 Bright;
 		Stop;
 	}
 
