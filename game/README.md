@@ -5,14 +5,14 @@
 | 目录 | 内容 | 是否入库 |
 |---|---|---|
 | `maps/` | **生成物**：vanilla 二进制 PWAD（FZ01-03）。源是 `tools/gen_maps.py`，不要手改 | 否 |
-| `zscript/` | ZScript 生产脚本，只 include `fz_defs` / `fz_gates` / `fz_hud` 三个 | 是 |
+| `zscript/` | ZScript 生产脚本，include `fz_defs` / `fz_weapons` / `fz_gates` / `fz_hud` / `fz_actors` 五个 | 是 |
 | `fonts/` | **生成物**：Fusion Pixel 12px 的 8 套预着色图集，由 `gen_font.py` 生成 | 否 |
 | `graphics/` | HUD 底板、标题图、中文主菜单补丁（`M_*.png`） | 是 |
 | `language/` | LANGUAGE 覆盖：拾取物与门的提示文案 | 是 |
 | `mapinfo/` | MAPINFO：`statusbarclass`、`eventhandlers`、`doomednums`、章节链 | 是 |
 | `menudef/` | 目前只有说明。主菜单靠 `graphics/M_*.png` 覆盖原版补丁，不打进 PK3 | 是 |
 | `acs/` | 预留，当前无 ACS 脚本 | — |
-| `sprites/` `sounds/` | 预留，当前敌人/武器仍用 IWAD 占位素材 | — |
+| `sprites/` `sounds/` | 敌人与拾取物的自制精灵；玩家手持武器不覆盖（`PISG*` / `SHTG*` 走 IWAD），地面拾取 `PISTA0` / `SHOTA0` 是自制版 | — |
 
 打包命令：
 
