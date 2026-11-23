@@ -218,7 +218,7 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
 - [x] 五首自制配乐 —— 标题 + 三章 + Boss，OGG q5 / −16 LUFS / 采样级循环点，
       接在 `MAPINFO` 与 `gameinfo.titleMusic` 上，规格见 `docs/音频设计.md` §4.1
 - [ ] 敌人配音仍是原版怪叫（`SeeSound` / `PainSound` / `DeathSound`），
-      台词与录音规范见 `docs/音频设计.md` §5
+      台词与录音规范见 `docs/配音设计.md`，设计背景见 `docs/音频设计.md` §5
 - [x] 弹药 / 护甲 / 血包 / 拾取武器 —— 2026-11-22 已换成自绘、按原版画布覆盖同名 lump
       （`CLIP` `SHEL` `ARM1` `MEDI` `STIM` `BPAK` `BKEY`）
 - [ ] 玩家手持武器仍是 Freedoom 原版帧（`PISG*` / `SHTG*`），设计稿见
