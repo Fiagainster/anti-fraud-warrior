@@ -158,7 +158,9 @@ ESC            打开主菜单（注意：需要按住约 2 秒）
 - 角色（6 种敌人 78 帧、2 把武器 9 帧）与三个流程物件（数据终端 / 证据箱 /
   主谋证据）已全部换成自研像素图，不再出现 Freedoom 的护甲 / 背包 / 蓝钥匙
 - 墙地贴图部分自研、部分沿用 Freedoom 同名素材
-- 音效与音乐暂时沿用 Freedoom；弹药 / 护甲 / 血包的图也还是 Freedoom 的
+- 音效为程序化合成；五首配乐为本次自制（标题 + 三章 + Boss）
+- 敌人语音仍是 Freedoom 原版怪叫（配音待录）
+- 弹药 / 护甲 / 血包的图也还是 Freedoom 的
 - 抉择菜单目前仅键盘操作
 - 本包为宣传演示用途；剧情与知识点见 docs/剧情.md
 
@@ -168,7 +170,22 @@ UZDoom 5.0.3        GPL-3.0（源码见 https://github.com/UZDoom/UZDoom）
 Freedoom 0.13.0     BSD 3-Clause（freedoom1.wad）
 Fusion Pixel 字体    SIL Open Font License 1.1
 本作剧情 / 地图 / 脚本 / 界面素材：项目自产
+配乐：项目自制，音源与 AI 参与说明见 LICENSES/music-credits.txt
 详见 LICENSES/ 目录。
+"""
+
+MUSIC_CREDITS = """反诈战士 · 配乐来源说明
+
+游戏内 BGM（game/music/title.ogg、ch1.ogg、ch2.ogg、ch3.ogg、boss.ogg）为本项目自制：
+2026-11-23 由 DSH Agent 编写乐谱，再用本地 SoundFont 渲染成音频。旋律、和声与编排
+均为本次原创，未使用任何第三方采样，也未使用既有曲目的旋律。
+
+音源：GeneralUser GS（GeneralUser GS License v2.0）。它只在制作时于本机用于渲染，
+不随本包分发；本包内是渲染后的音频，不含 SoundFont 文件本身。
+
+乐谱源文件与 AI 参与登记见仓库：
+  assets_src/audio/music/   乐谱 JSON 与循环点清单
+  assets_src/CREDITS.md     工具、日期、提示词摘要、人工修改程度
 """
 
 
@@ -231,6 +248,10 @@ def main() -> int:
         p = FONT_DIR / name
         if p.exists():
             shutil.copy2(p, lic / f"fusion-pixel-{name}")
+
+    # 配乐不是第三方素材，但音源与 AI 参与要留痕，别让成品包说不清来源
+    (lic / "music-credits.txt").write_text(MUSIC_CREDITS, encoding="utf-8-sig",
+                                           newline="\r\n")
 
     print(f"\npackage ready: {PKG}")
     total = sum(f.stat().st_size for f in PKG.rglob("*") if f.is_file())
