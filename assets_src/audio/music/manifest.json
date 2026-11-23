@@ -1,0 +1,283 @@
+{
+ "songs": [
+  {
+   "key": "title",
+   "title": "悬置",
+   "bpm": 70.0,
+   "loopStartBar": 0,
+   "loopEndBar": 8,
+   "totalBars": 8,
+   "loopStartSec": 0.0,
+   "loopEndSec": 27.4286,
+   "tailSec": 6.0,
+   "tracks": [
+    {
+     "name": "低音铺底",
+     "instrument": "contrabass",
+     "notes": 4
+    },
+    {
+     "name": "暖垫",
+     "instrument": "warm-pad",
+     "notes": 4
+    },
+    {
+     "name": "编钟",
+     "instrument": "bianzhong",
+     "notes": 6
+    },
+    {
+     "name": "脉冲",
+     "instrument": "drums",
+     "notes": 8
+    },
+    {
+     "name": "定音鼓",
+     "instrument": "timpani",
+     "notes": 2
+    },
+    {
+     "name": "空气层",
+     "instrument": "atmosphere",
+     "notes": 1
+    }
+   ],
+   "gains": {
+    "低音铺底": -2.0,
+    "暖垫": -11.94,
+    "编钟": -5.0,
+    "脉冲": -6.1,
+    "定音鼓": -5.96,
+    "空气层": 8.29
+   }
+  },
+  {
+   "key": "ch1",
+   "title": "刷单深渊",
+   "bpm": 128.0,
+   "loopStartBar": 8,
+   "loopEndBar": 40,
+   "totalBars": 40,
+   "loopStartSec": 15.0,
+   "loopEndSec": 75.0,
+   "tailSec": 5.0,
+   "tracks": [
+    {
+     "name": "固定音型",
+     "instrument": "pick-bass",
+     "notes": 512
+    },
+    {
+     "name": "鼓组",
+     "instrument": "drums",
+     "notes": 582
+    },
+    {
+     "name": "金属垫",
+     "instrument": "metal-pad",
+     "notes": 20
+    },
+    {
+     "name": "锯齿主音",
+     "instrument": "saw-lead",
+     "notes": 44
+    },
+    {
+     "name": "失真和弦",
+     "instrument": "distortion",
+     "notes": 64
+    },
+    {
+     "name": "编钟",
+     "instrument": "bianzhong",
+     "notes": 12
+    },
+    {
+     "name": "颤音弦乐",
+     "instrument": "tremolo-strings",
+     "notes": 8
+    }
+   ],
+   "gains": {
+    "固定音型": 4.36,
+    "鼓组": 0.0,
+    "金属垫": 6.22,
+    "锯齿主音": 4.58,
+    "失真和弦": 3.13,
+    "编钟": 4.86,
+    "颤音弦乐": 3.75
+   }
+  },
+  {
+   "key": "ch2",
+   "title": "装备黑市",
+   "bpm": 92.0,
+   "loopStartBar": 8,
+   "loopEndBar": 40,
+   "totalBars": 40,
+   "loopStartSec": 20.8696,
+   "loopEndSec": 104.3478,
+   "tailSec": 5.0,
+   "tracks": [
+    {
+     "name": "贝斯",
+     "instrument": "finger-bass",
+     "notes": 140
+    },
+    {
+     "name": "手鼓",
+     "instrument": "drums",
+     "notes": 436
+    },
+    {
+     "name": "马林巴",
+     "instrument": "marimba",
+     "notes": 240
+    },
+    {
+     "name": "琵琶",
+     "instrument": "pipa",
+     "notes": 88
+    },
+    {
+     "name": "单簧管",
+     "instrument": "clarinet",
+     "notes": 50
+    },
+    {
+     "name": "爵士吉他",
+     "instrument": "jazz-guitar",
+     "notes": 56
+    },
+    {
+     "name": "暖垫",
+     "instrument": "warm-pad",
+     "notes": 24
+    }
+   ],
+   "gains": {
+    "贝斯": -8.31,
+    "手鼓": 0.0,
+    "马林巴": -9.29,
+    "琵琶": -4.27,
+    "单簧管": -8.06,
+    "爵士吉他": -7.44,
+    "暖垫": -9.31
+   }
+  },
+  {
+   "key": "ch3",
+   "title": "警服幻影",
+   "bpm": 110.0,
+   "loopStartBar": 16,
+   "loopEndBar": 48,
+   "totalBars": 48,
+   "loopStartSec": 34.9091,
+   "loopEndSec": 104.7273,
+   "tailSec": 5.0,
+   "tracks": [
+    {
+     "name": "军鼓进行",
+     "instrument": "drums",
+     "notes": 488
+    },
+    {
+     "name": "低音铜管",
+     "instrument": "trombone",
+     "notes": 96
+    },
+    {
+     "name": "铜管动机",
+     "instrument": "brass-section",
+     "notes": 120
+    },
+    {
+     "name": "定音鼓",
+     "instrument": "timpani",
+     "notes": 20
+    },
+    {
+     "name": "颤音弦乐",
+     "instrument": "tremolo-strings",
+     "notes": 32
+    },
+    {
+     "name": "人声铺底",
+     "instrument": "choir",
+     "notes": 16
+    },
+    {
+     "name": "唢呐",
+     "instrument": "suona",
+     "notes": 12
+    }
+   ],
+   "gains": {
+    "军鼓进行": 0.0,
+    "低音铜管": 4.69,
+    "铜管动机": 0.91,
+    "定音鼓": -0.11,
+    "颤音弦乐": 0.47,
+    "人声铺底": -0.43,
+    "唢呐": 5.83
+   }
+  },
+  {
+   "key": "boss",
+   "title": "主席战",
+   "bpm": 140.0,
+   "loopStartBar": 8,
+   "loopEndBar": 24,
+   "totalBars": 24,
+   "loopStartSec": 13.7143,
+   "loopEndSec": 41.1429,
+   "tailSec": 4.0,
+   "tracks": [
+    {
+     "name": "失真低音",
+     "instrument": "pick-bass",
+     "notes": 512
+    },
+    {
+     "name": "鼓组",
+     "instrument": "drums",
+     "notes": 575
+    },
+    {
+     "name": "失真和弦",
+     "instrument": "distortion",
+     "notes": 80
+    },
+    {
+     "name": "铜管重音",
+     "instrument": "brass-section",
+     "notes": 16
+    },
+    {
+     "name": "锯齿主音",
+     "instrument": "saw-lead",
+     "notes": 32
+    },
+    {
+     "name": "警报钟",
+     "instrument": "bianzhong",
+     "notes": 18
+    },
+    {
+     "name": "金属垫",
+     "instrument": "metal-pad",
+     "notes": 24
+    }
+   ],
+   "gains": {
+    "失真低音": 5.33,
+    "鼓组": 0.0,
+    "失真和弦": 3.9,
+    "铜管重音": 2.19,
+    "锯齿主音": 3.59,
+    "警报钟": 0.95,
+    "金属垫": 5.5
+   }
+  }
+ ]
+}
