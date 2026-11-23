@@ -7,7 +7,30 @@ gameinfo
 	statusbarclass = "FZStatusBar"
 	eventhandlers = "FZPlayEvents"
 	titleMusic = "music/title.ogg"
+	// 标题页与轮播介绍页（替代 Freedoom 自带的那几张）
+	titlePage = "TITLEPIC"
+	titleTime = 12
+	creditPage = "FZCRED1"
+	addcreditPage = "FZCRED2"
+	pageTime = 8
+	advisoryTime = 0
+	// 结局：没有下一张图时走这个 end sequence（六个敌人巡礼 -> 终章图 -> 回标题）
+	defaultendsequence = "FZ_END"
 }
+
+// 怪物巡礼：一只一屏，按一下键让当前这只倒下，然后换下一只；
+// 最后一张终章图，再按键回标题。不想看可以 ESC 打开菜单退出。
+intermission FZ_END
+{
+	cast { CastClass = "FZShill"    Background = "FZCASTBG" }
+	cast { CastClass = "FZRunner"   Background = "FZCASTBG" }
+	cast { CastClass = "FZScalper"  Background = "FZCASTBG" }
+	cast { CastClass = "FZBroker"   Background = "FZCASTBG" }
+	cast { CastClass = "FZFakeCop"  Background = "FZCASTBG" }
+	cast { CastClass = "FZChairman" Background = "FZCASTBG" }
+	image { Background = "FZENDPIC" }
+}
+
 
 doomednums
 {
@@ -33,3 +56,4 @@ episode FZ01 { name = "反诈战士：净网行动" }
 map FZ01 "第一章：刷单深渊" { Next = "FZ02" Sky1 = "SKY1" Music = "music/ch1.ogg" }
 map FZ02 "第二章：装备黑市" { Next = "FZ03" Sky1 = "SKY1" Music = "music/ch2.ogg" }
 map FZ03 "第三章：警服幻影" { Sky1 = "SKY1" Music = "music/ch3.ogg" }
+

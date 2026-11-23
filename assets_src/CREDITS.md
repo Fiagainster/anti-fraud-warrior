@@ -9,16 +9,28 @@
 | `vendor/freedoom-0.13.0/freedoom1.wad` | IWAD/贴图/音效 | freedoom.github.io | Freedoom Team | BSD-3-Clause | 无 | 保留 COPYING/CREDITS |
 | `vendor/fusion-pixel-2026.11.10/*.ttf` | 字体 | github.com/TakWolf/fusion-pixel-font | TakWolf | OFL-1.1 | 无 | 预着色图集由 gen_font.py 生成 |
 | `tools/blender/emblem_render.py` | 脚本 | 自制 | 本项目 | GPL-3.0 | 无 | Blender 无头渲染示例 |
-| `game/graphics/*.png` | UI 图 | 自制（脚本生成） | 本项目 | CC BY-NC-SA 4.0* | 无 | gen_titlepic/gen_panel 等生成 |
+| `game/graphics/*.png` | UI 图 | 自制（脚本生成） | 本项目 | CC BY-NC-SA 4.0* | 无 | gen_title/gen_panel 等生成 |
 | `game/zscript/*`, `tools/*` | 代码 | 自制 | 本项目 | GPL-3.0 | 无 | |
 | `game/music/title.ogg` | 音乐 | 自制（AI 辅助） | DSH Agent + anyaudio 0.4.2 / 2026-11-23 | CC BY-NC-SA 4.0* | 是 | 70 BPM D 小调，27.4s 整曲循环 |
 | `game/music/ch1.ogg` | 音乐 | 自制（AI 辅助） | DSH Agent + anyaudio 0.4.2 / 2026-11-23 | CC BY-NC-SA 4.0* | 是 | 128 BPM A 小调，8 小节前奏 + 32 小节循环 |
 | `game/music/ch2.ogg` | 音乐 | 自制（AI 辅助） | DSH Agent + anyaudio 0.4.2 / 2026-11-23 | CC BY-NC-SA 4.0* | 是 | 92 BPM E 小调，A16 + B16 |
 | `game/music/ch3.ogg` | 音乐 | 自制（AI 辅助） | DSH Agent + anyaudio 0.4.2 / 2026-11-23 | CC BY-NC-SA 4.0* | 是 | 110 BPM C 小调，16 小节慢起 + 32 小节进行 |
 | `game/music/boss.ogg` | 音乐 | 自制（AI 辅助） | DSH Agent + anyaudio 0.4.2 / 2026-11-23 | CC BY-NC-SA 4.0* | 是 | 140 BPM F 小调，8 小节进场 + 16 小节循环 |
+| `art/title/cover.jpg`、`art/title/ending.jpg` | 插画源 | 自制（AI 生成） | Ark Seedream 5.0 `doubao-seedream-5-0-260128` / 2026-11-23 | CC BY-NC-SA 4.0* | 是 | 标题与终章插画底稿，提示词见下 |
+| `game/graphics/TITLEPIC.png`、`FZENDPIC.png` | 标题 / 终章图 | 上述插画 + 脚本叠字 | 同左 + `tools/gen_title.py` | CC BY-NC-SA 4.0* | 是 | 中文标题、压暗、降色数由脚本完成 |
+| `game/graphics/FZCRED1.png`、`FZCRED2.png`、`FZCASTBG.png` | 轮播页 / 巡礼底图 | 自制（纯脚本绘制） | 本项目 | CC BY-NC-SA 4.0* | 无 | `tools/gen_title.py` 生成，无 AI 插画 |
 | `docs/剧情.md` 等 | 文案 | 自制 | 本项目 | CC BY-NC-SA 4.0* | 无 | 发布前需宣传口径审校 |
 
 \* 内容授权待单位确认，确认后请更新此表与根目录 `LICENSE`。
+
+### 标题插画的 AI 登记
+
+| 项 | 内容 |
+|---|---|
+| 模型 / 工具 | 火山方舟 Ark，Seedream 5.0（`doubao-seedream-5-0-260128`），2560×1440 |
+| 日期 | 2026-11-23 |
+| 提示词摘要 | 封面："像素风厚涂，雨夜中国城市街头，主角背影站在积水旁，对面写字楼透出一排排屏幕冷光与人影，冷蓝调 + 暖橙霓虹，上方留白给标题，不要任何文字/logo"；终章："天刚亮、雨停，街道积水映天光，远处写字楼只剩几扇亮着，近景散落手机与打印纸，主角背影走向尽头，冷青灰调" |
+| 人工修改 | 裁切为 16:9、左上/底部压暗、降色数到 56 色保住像素块面；中文标题、章节名、"按 ENTER"、96110、操作提示全部由 `tools/gen_title.py` 用 Fusion Pixel 字体叠加，未使用模型生成文字 |
 
 ### 音乐素材的 AI 登记
 
@@ -39,3 +51,4 @@
 ```
 
 AI 登记需额外写明：模型名、日期、提示词摘要、人工修改内容。
+
