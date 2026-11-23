@@ -1,2 +1,5 @@
-STARTUPTITLE = "反诈战士 · 净网行动"
+// 版本号会出现在窗口标题栏上，是"我到底跑的是哪个构建"的唯一可靠判据。
+// 每次交付前改这里，并同步 tools/make_dist.py 的 NAME 与 dist README.txt 的
+// 标题行——三处不一致时 make_dist.py 会拒绝打包。
+STARTUPTITLE = "反诈战士 · 净网行动 v0.2"
 STARTUPTYPE = "DOOM"

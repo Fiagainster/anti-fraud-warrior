@@ -116,7 +116,17 @@ class FZEvidenceChain : Object play
 	// 不会卡关：答错时 FZGateTerminal 不置 done（只有答对或已持有该题进度
 	// 才置），冷却 4 秒后走开再靠近就会重新弹菜单，代价是掉警惕值 + 伏击。
 	// 所以"答错"只是暂时开不了门，永远有重答这条路。
-	static void Grant(Actor pl, int amount = 1)
+	//
+	// 证据只从三个证据箱来，答对抉择只给 FZStage 令牌和防骗盾。
+	// 这一点很重要：以前答对也调 Grant(+1)，于是"答对两题 + 捡一个箱子"
+	// 就凑满 3 件，剩下两个箱子永远捡不起来，变成站在原地按不动的死道具
+	// （玩家原话"有些道具满了就捡不了了，看着挺怪"）。现在三箱 = 三件，
+	// 一一对应，任何一箱都不会变成废件，README 里"三个证据箱正好凑满"
+	// 也才名副其实。
+	//
+	// remind=false 用于"答题后复核"：条件没齐时不要每答一题就再喊一次
+	// 905（那段提示是给"捡满箱子但还没答题"的人看的）。
+	static void Grant(Actor pl, int amount = 1, bool remind = true)
 	{
 		if (pl == null || pl.player == null) return;
 		pl.GiveInventory("FZEvidence", amount); // MaxAmount 3，超出的自动吞掉
@@ -125,11 +135,19 @@ class FZEvidenceChain : Object play
 		if (pl.CountInv("FZStage1") < 1 || pl.CountInv("FZStage2") < 1)
 		{
 			// 证据齐了但还有题没答对：明确告诉玩家回去重答，别让人以为是 bug
-			FZMsgItemBase.Push(pl, 905, 320);
+			if (remind) FZMsgItemBase.Push(pl, 905, 320);
 			return;
 		}
 		pl.GiveInventory("RedCard", 1);
 		FZMsgItemBase.Push(pl, 904, 320);
+	}
+
+	// 答题之后复核一遍：箱子可能早就捡满了，红卡该在这时候补发。
+	// 没有这一步，先捡箱子后答题的顺序永远拿不到红卡（Grant 只在箱子
+	// 被捡起时调用，那时 FZStage2 还没到手）。
+	static void Recheck(Actor pl)
+	{
+		Grant(pl, 0, false);
 	}
 }
 
@@ -256,6 +274,9 @@ class FZEvidencePickup : Inventory
 	override bool TryPickup(in out Actor toucher)
 	{
 		if (toucher == null || toucher.player == null) return false;
+		// 满三件就不再收。现在证据只由三个证据箱提供（答对抉择不再发证据），
+		// 箱子和碎片一一对应，这条分支正常情况下走不到，留着是防止以后
+		// 再加证据来源时又出现"地上躺着捡不起来的箱子"。
 		if (toucher.CountInv("FZEvidence") >= 3) return false;
 		FZEvidenceChain.Grant(toucher);
 		FZMsgItemBase.Push(toucher, 901, 210);

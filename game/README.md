@@ -4,7 +4,7 @@
 
 | 目录 | 内容 | 是否入库 |
 |---|---|---|
-| `maps/` | **生成物**：vanilla 二进制 PWAD（FZ01-03）。源是 `tools/gen_maps.py`，不要手改 | 否 |
+| `maps/` | **生成物**：UDMF 文本装进 WAD lump（FZ01-03，命名空间 `ZDoomTranslated`）。源是 `tools/gen_maps.py`，不要手改 | 否 |
 | `zscript/` | ZScript 生产脚本，include `fz_defs` / `fz_weapons` / `fz_gates` / `fz_hud` / `fz_actors` 五个 | 是 |
 | `fonts/` | **生成物**：Fusion Pixel 12px 的 8 套预着色图集，由 `gen_font.py` 生成 | 否 |
 | `graphics/` | HUD 底板、标题图、中文主菜单补丁（`M_*.png`） | 是 |
@@ -24,6 +24,9 @@ python tools\build.py      # -> build/fanzha-demo.pk3（缺地图/字体会自�
 地图 WAD 不进 PK3，而是作为松散文件放在 `build/maps/`：引擎 5.0.3 对 PK3 内
 `maps/*.wad` 的全名查找不可靠。
 
-硬约束（改动前先看这条）：地图必须是 **vanilla 二进制格式**，UDMF 在 UZDoom
-5.0.3 会崩；纹理名必须 NUL 填充且存在于 IWAD；自定义 ednum 必须 < 32768。
+硬约束（改动前先看这条）：地图是 **UDMF 文本装进 WAD lump**（`FZ01` 空标记 +
+`TEXTMAP` + `ENDMAP`），命名空间固定 `ZDoomTranslated`——引擎靠它把 UDMF 编号
+翻译成 Doom 内部号，写成 `zdoom` 命名空间会让门的 special 全部对不上。
+别把地图改成 PK3 里的散装 `maps/xxx.map`：5.0.3 上那条路径启动即崩。
+纹理名必须 NUL 填充且存在于 IWAD；自定义 ednum 必须 < 32768。
 详细踩坑见根目录 README 的「已踩过的坑」。

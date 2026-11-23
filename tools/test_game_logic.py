@@ -470,6 +470,13 @@ def test_stage_tokens(chapters, zs):
               (ch["gate_a"] % 10) != (ch["gate_b"] % 10),
               "ids %d/%d" % (ch["gate_a"], ch["gate_b"]))
 
+    # HUD 的分母必须是 2，不能是 3。每章只有两个抉择终端，第三格是"打死
+    # 主谋拿证据"——写成 进度 x/3，玩家答完两题看到 2/3 就会满地图找第三个
+    # 终端（真实反馈）。这条断言挡住把它改回去。
+    check("HUD 抉择分母 = 2（每章只有两个终端）",
+          "抉择 %d/2" in zs and "进度 %d/3" not in zs,
+          "HUD 仍在显示 进度 x/3：玩家会去找不存在的第三个终端")
+
     gates_src = strip_comments(read(ZSCRIPT / "fz_gates.zs"))
     body = func_body(gates_src, "WorldLoaded") + func_body(gates_src, "ClearChapterState")
     check("换关时会重置章节状态（WorldLoaded）", bool(body), "no WorldLoaded")
@@ -508,6 +515,32 @@ def test_evidence_chain(zs):
     check("终端冷却走开即失效（mCool 到期后可重触发）",
           "mCool > 0" in zs and "StartCool" in zs,
           "缺少每终端冷却：站着不动会被反复喂菜单")
+
+    # 证据来源必须唯一，只能来自三个证据箱。
+    # 以前答对抉择也会 Grant(+1)，于是"答对两题 + 捡一个箱子"就凑满 3 件，
+    # 剩下两个箱子永远捡不起来，变成站在地上按不动的死道具——玩家原话
+    # "有些道具满了就捡不了了，看着挺怪"。箱子和碎片必须一一对应。
+    check("答对抉择不再直接发证据（只复核红卡）",
+          "FZEvidenceChain.Recheck" in choice
+          and re.search(r"FZEvidenceChain\.Grant\(", choice) is None,
+          "GateChoice 仍在给证据：三箱凑不满时会多出捡不动的箱子")
+
+    # 出口把关：不打 Boss 不能结案。WorldLinePreActivated 是唯一能在
+    # special 执行前否决激活的钩子（p_spec.cpp 里 shouldactivate=false
+    # 会直接 return），所以必须存在、且真的把 FZStage3 / 活 Boss 当条件。
+    gate = func_body(zs, "WorldLinePreActivated")
+    check("出口开关要求先打赢 Boss（WorldLinePreActivated 拦激活）",
+          "ShouldActivate" in gate and "FZStage3" in gate,
+          "出口没有把关：走到最里面按一下就能通关")
+    # 比对的必须是引擎内部枚举，不是 UDMF 里写的 11。
+    # 地图 namespace 是 ZDoomTranslated，装载时 xlat/base.txt 的
+    # `11 = USE, Exit_Normal (0)` 会把 Line.special 改写成 Exit_Normal
+    # （243）。照字面的 11 去比，钩子一次都不会命中，等于没写——这正是
+    # tools/fz_ctl.py 记过的"special 52 从 ZScript 永远不触发"那个坑。
+    check("出口钩子用 Exit_Normal 常量比对（不是 UDMF 的 11）",
+          "Exit_Normal" in gate
+          and re.search(r"special\s*!=\s*11\b", gate) is None,
+          "按 UDMF 编号比对：ZDoomTranslated 装载后编号已变，钩子永不命中")
 
 
 def test_trial_door(chapters):

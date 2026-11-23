@@ -710,6 +710,19 @@ SCENARIOS = {
                                           "+set", "fz_bot_killboss", "1",
                                           "+set", "fz_bot_god", "1",
                                           "+set", "fz_bot_ammo", "1"])),
+    # 反例之三：Boss 还活着就去按出口 → 必须没反应。
+    # 这就是玩家报的"不需要打赢最终 boss 直接走到底也能通关"。
+    # 起图用 -nomonsters 把走廊清空（否则原地不动的怪会把机器人堵在半路，
+    # 那样测出来的是导航问题，不是出口把关），然后单独 summon 一只 Boss
+    # 丢在出生点、+notarget 让它从头到尾不追人、fz_bot_god 让人不死。
+    # 于是机器人一路畅通越过出口线，而"活着的主谋"始终在场。
+    # 期望：机器人越过出口线（reached wp 25）却仍停在本关，日志里出现
+    # FZDBG: exit blocked。
+    "bosslock": (None, dict(bot=1, stop=25, timeout=110, monsters=False,
+                            want_routes=1, deadline=170, fire=False,
+                            post=["+notarget", "+summon", "FZChairman"],
+                            extra=["+set", "fz_autoanswer", "1",
+                                   "+set", "fz_bot_god", "1"])),
     "full": (None, dict(bot=1, stop=-1, combat=1, timeout=190,
                         monsters=True, want_routes=3, deadline=780,
                         want_chapters=3, grace=8.0,
@@ -722,19 +735,28 @@ SCENARIOS = {
 # Scenarios that arm the in-engine route bot, and are therefore expected to
 # print "FZBOT: route armed". boot/esc drive the stock menus instead.
 BOT_SCENARIOS = ("tour", "gate", "menu", "door", "exit", "chapter", "lock",
-                 "retry", "boss", "full")
+                 "retry", "boss", "bosslock", "full")
 
-CHAPTER_SCENARIOS = ("chapter", "lock", "retry", "boss", "full")
+CHAPTER_SCENARIOS = ("chapter", "lock", "retry", "boss", "bosslock", "full")
 
 
 # ----------------------------------------------------------------- main --
 
 def static_tests() -> int:
-    print("== static logic tests (WAD / MAPINFO / ZScript) ==")
-    r = subprocess.run([sys.executable, "-I",
+    print("== static logic tests (WAD / MAPINFO / ZScript) ==", flush=True)
+    r = subprocess.run([sys.executable, "-I", "-X", "utf8",
                         str(ROOT / "tools/test_game_logic.py")],
                        cwd=str(ROOT))
-    return 0 if r.returncode == 0 else 2
+    if r.returncode != 0:
+        return 2
+    # 几何审计：这套检查盯的是"玩家看得见的症状"——扇区不闭合（黑洞/能看穿）、
+    # 同侧叠面（闪面）、高度缝缺贴图（透视带）、物件落点（卡在墙里）。
+    # 三章都要求 0 条，否则返回非零把 static 判失败。
+    print("\n== geometry audit (sectors / lines / things) ==", flush=True)
+    a = subprocess.run([sys.executable, "-I", "-X", "utf8",
+                        str(ROOT / "tools/audit_maps.py")],
+                       cwd=str(ROOT))
+    return 0 if a.returncode == 0 else 2
 
 
 def run(scenario: str, mapname: str | None = None) -> int:
@@ -964,6 +986,21 @@ def report(scenario: str, driver_ok: bool, mapname: str | None = None,
 
     segs = chapter_segments(txt)
 
+    if scenario == "bosslock":
+        # Boss 还活着时按出口必须没反应。三条一起看，缺一条都可能是假通过：
+        #   1) 钩子真的被调用过（FZDBG: exit blocked）——排除"根本没走到"；
+        #   2) 机器人确实越过了出口线（reached wp 25）——排除"卡在半路"；
+        #   3) 关卡没有结束（还在同一关，没有下一段 route armed）——排除
+        #      "其实通关了只是日志没记"。
+        check("出口被拦下（Boss 活着时按出口无效）",
+              "FZDBG: exit blocked" in txt,
+              "钩子没触发：不打 boss 照样能通关")
+        check("机器人已越过出口线（wp 25）",
+              any("reached wp 25" in l for l in reached),
+              "bot never got past the exit threshold")
+        check("关卡没有结束（仍停在本关）",
+              len(segs) <= 1, "level ended: exit gating failed")
+
     if scenario == "chapter":
         if segs:
             st = check_chapter(check, segs[0][0], segs[0][1], positive=True)
@@ -1052,8 +1089,14 @@ def report(scenario: str, driver_ok: bool, mapname: str | None = None,
             check("主谋证据来自 Boss 掉落（本章 st3 由 0 变为 1）",
                   "st3=0" in first3 and flip,
                   f"first={first3[:60]} flip={flip}")
-            check("捡到主谋证据后走出出口", len(segs) >= 2 and st["wp24"],
-                  "never reached the exit")
+            if mapname == "FZ03":
+                # 最后一章没有"下一段 route armed"：出口进的是结束序列。
+                # 这里只能靠 exit_ok（越线后关卡结束）判定，别再要求 segs>=2。
+                check("捡到主谋证据后走出出口（最后一章走结束序列）",
+                      st["exit"], "exit line never fired after st3=1")
+            else:
+                check("捡到主谋证据后走出出口", len(segs) >= 2 and st["wp24"],
+                      "never reached the exit")
 
     if scenario == "full":
         armed = len(segs)

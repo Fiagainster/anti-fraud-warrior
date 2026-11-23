@@ -50,37 +50,50 @@ class FZStatusBar : BaseStatusBar
 
 	// -- helpers -----------------------------------------------------------
 
-	private int StageCount()
+	// !! 这里曾经叫 StageCount()，返回 0..3，HUD 上写"进度 %d/3"。
+	// 那是错的标法：第三格不是第三道题，而是"打死本章主谋、拿到主谋证据"，
+	// 而每章只有 2 个抉择终端。于是玩家答完两题看到 2/3，以为还有一道题，
+	// 满地图找不到第三个终端（真实反馈）。现在把两件事分开显示：
+	//   抉择 x/2   —— 只有两道题，答完就是 2/2
+	//   目标      —— 由 ObjectiveText() 说下一步做什么（答题 / 打 Boss / 去出口）
+	private int ChoiceCount()
 	{
 		let mo = CPlayer == null ? null : CPlayer.mo;
 		if (mo == null) return 0;
-		int s = 0;
-		if (mo.CountInv("FZStage1") > 0) s = 1;
-		if (mo.CountInv("FZStage2") > 0) s = 2;
-		if (mo.CountInv("FZStage3") > 0) s = 3;
-		return s;
+		int c = 0;
+		if (mo.CountInv("FZStage1") > 0) c = 1;
+		if (mo.CountInv("FZStage2") > 0) c = 2;
+		return c;
+	}
+
+	// 主谋证据到手 = 可以结案（出口闸门也认这一条）。
+	private bool CaseClosed()
+	{
+		let mo = CPlayer == null ? null : CPlayer.mo;
+		return mo != null && mo.CountInv("FZStage3") > 0;
 	}
 
 	private String ObjectiveText()
 	{
-		int s = StageCount();
+		int c = ChoiceCount();
+		bool closed = CaseClosed();
 		if (level.mapname == "FZ01")
 		{
-			if (s == 0) return "调查刷单群";
-			if (s == 1) return "识破共享屏幕陷阱";
-			if (s == 2) return "击败群主闪电哥";
+			if (c == 0) return "调查刷单群";
+			if (c == 1) return "识破共享屏幕陷阱";
+			if (!closed) return "击败群主闪电哥";
 		}
 		else if (level.mapname == "FZ02")
 		{
-			if (s == 0) return "潜入游戏黑市";
-			if (s == 1) return "识破钓鱼链接";
-			if (s == 2) return "击败暗影商人";
+			if (c == 0) return "潜入游戏黑市";
+			if (c == 1) return "识破钓鱼链接";
+			if (!closed) return "击败暗影商人";
 		}
 		else if (level.mapname == "FZ03")
 		{
-			if (s == 0) return "接听恐吓来电";
-			if (s == 1) return "识破协查APP";
-			if (s == 2) return "擒获影子会长";
+			if (c == 0) return "接听恐吓来电";
+			if (c == 1) return "识破协查APP";
+			if (!closed) return "擒获影子会长";
 		}
 		return "前往出口结案";
 	}
@@ -197,7 +210,9 @@ class FZStatusBar : BaseStatusBar
 			if (ev > 3) ev = 3;
 			DrawString(mGold, String.Format("证据 %d/3", ev), (256, 155), DI_NOSHADOW, Font.CR_UNTRANSLATED);
 
-			DrawString(mWhite, String.Format("进度 %d/3", StageCount()), (6, 174), DI_NOSHADOW, Font.CR_UNTRANSLATED);
+			// 只有两道题，所以分母是 2。第三件事（打死主谋）由右边这句
+			// 目标文字表达，不再冒充成"第三题"。
+			DrawString(mWhite, String.Format("抉择 %d/2", ChoiceCount()), (6, 174), DI_NOSHADOW, Font.CR_UNTRANSLATED);
 			DrawString(mCyan, ObjectiveText(), (80, 174), DI_NOSHADOW, Font.CR_UNTRANSLATED);
 			// key indicator: the trial-door key is granted silently, so
 			// players kept asking "where is the key?"

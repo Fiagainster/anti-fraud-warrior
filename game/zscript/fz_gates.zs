@@ -80,32 +80,72 @@ class FZGateData ui
 	{
 		switch (id)
 		{
-			case 101: return "【简报】大学生小陈被拉进“闪电赚钱群”，\n动动手指日赚三百？潜入骗局网络空间，\n净化妖魔，收集证据！";
-			case 102: return "【提示】走近闪烁的“数据终端”触发抉择，\n选错会掉警惕值并引来妖魔伏击，\n但走开再回来可以重新作答。";
-			case 103: return "【提示】集齐 3 件证据、并答对两道抉择，\n审判门才会打开；击败幕后主谋才能结案。";
-			case 201: return "【简报】小陈的室友想买 3 折“内部价”皮肤，\n进了黑市交易群。潜入黑市空间，\n揪出暗影商人！";
-			case 202: return "【提示】黑市里诱惑更多，站稳脚跟：\n远离一切脱离平台的交易。\n答错可以走开再回来重答，不会被锁死。";
-			case 203: return "【提示】钓鱼链接最爱伪装“官方活动”，\n任何索要账号密码的活动都是假的。";
+			case 101: return "【简报】小陈被拉进刷单群，
+动动手指日赚三百是骗局？
+潜入网络空间，收集证据！";
+			case 102: return "【提示】走近闪烁的数据终端
+触发抉择；选错会掉警惕值，
+走开再回来可以重新作答。";
+			case 103: return "【提示】集齐 3 件证据、
+并答对两道抉择，审判门
+才会打开；击败主谋才能结案。";
+			case 201: return "【简报】室友想买 3 折皮肤，
+进了黑市交易群。
+潜入黑市，揪出暗影商人！";
+			case 202: return "【提示】黑市诱惑更多，
+远离一切脱离平台的交易。
+答错可走开再回来重答。";
+			case 203: return "【提示】钓鱼链接最爱伪装
+“官方活动”，任何索要账号
+密码的活动都是假的。";
 			case 301: return "【简报】“王警官”来电恐吓小陈：\n涉案要判刑！潜入幻影空间，\n拆穿假警察的真面目！";
-			case 302: return "【提示】记住：公检法不会电话办案，\n更没有“安全账户”。\n答错可以走开再回来重答，不会被锁死。";
+			case 302: return "【提示】记住：公检法不会
+电话办案，更没有安全账户。
+答错可走开再回来重答。";
 			case 303: return "【提示】“案件保密，不许告诉家人”\n是骗子的心虚——告诉家人就是反诈！";
-			case 901: return "获得一件证据碎片！集齐 3 件可开启审判门。";
+			case 901: return "获得一件证据碎片！
+集齐 3 件可开启审判门。";
 			case 902: return "幕后主谋已倒下！拾取掉落的\n【主谋证据】，前往出口结案。";
 			case 903: return "结案！主谋已伏法，前往出口开关。";
 			case 904: return "【证据链完整】审判门已解锁，\n走到红锁门前按 E 进入。";
-			case 905: return "【提示】证据链已齐，但还有抉择没答对——\n回到闪烁终端重新作答，审判门才会开。";
-			case 111: return "【识破】凡是让你先垫资的刷单都是诈骗——\n先给甜头后宰客，垫付的钱有去无回！";
-			case 121: return "【识破】共享屏幕=把银行卡密码拱手送人！\n卡单、解冻、激活全是话术。";
-			case 211: return "【识破】脱离平台私下交易=放弃一切保障，\n转账瞬间对方立刻拉黑跑路。";
-			case 221: return "【识破】低价皮肤是诱饵，\n索要账号密码的“官方活动”都是钓鱼！";
+			case 905: return "【提示】证据链已齐，
+但还有抉择没答对——
+回终端重新作答。";
+			case 906: return "【提示】案子还没结：
+幕后主谋还活着。
+撂倒他、取下主谋证据。";
+			case 111: return "【识破】先垫资的刷单
+都是诈骗——先给甜头
+后宰客，钱有去无回！";
+			case 121: return "【识破】共享屏幕=
+把银行卡密码送人！
+卡单、解冻全是话术。";
+			case 211: return "【识破】脱离平台私下
+交易=放弃一切保障，
+转账瞬间就被拉黑。";
+			case 221: return "【识破】低价皮肤是诱饵，
+索要账号密码的“活动”
+都是钓鱼！";
 			case 311: return "【识破】公检法不设“安全账户”，\n凡是要求转账的都是诈骗！";
-			case 321: return "【识破】真警察绝不会电话要求下载 APP、\n共享屏幕“取证”！";
-			case 112: return "【正确】拒绝垫付！刷单返利是骗局，\n防骗盾+1，获得证据碎片。";
-			case 122: return "【正确】拉黑举报！不给骗子共享屏幕，\n防骗盾+1，获得证据碎片。";
-			case 212: return "【正确】坚持官方平台！担保交易才安全，\n防骗盾+1，获得证据碎片。";
-			case 222: return "【正确】不输密码！钓鱼链接无处遁形，\n防骗盾+1，获得证据碎片。";
-			case 312: return "【正确】拨 96110 核实！假警察当场露馅，\n防骗盾+1，获得证据碎片。";
-			case 322: return "【正确】告诉家人！反诈第一步就是别保密，\n防骗盾+1，获得证据碎片。";
+			case 321: return "【识破】真警察绝不会
+电话要求下载 APP、
+共享屏幕“取证”！";
+			case 112: return "【正确】拒绝垫付！刷单返利是骗局，\n防骗盾+1，进度已记下。";
+			case 122: return "【正确】拉黑举报！
+不给骗子共享屏幕，
+防骗盾+1，进度已记下。";
+			case 212: return "【正确】坚持官方平台！
+担保交易才安全，
+防骗盾+1，进度已记下。";
+			case 222: return "【正确】不输密码！
+钓鱼链接无处遁形，
+防骗盾+1，进度已记下。";
+			case 312: return "【正确】拨 96110 核实！
+假警察当场露馅，
+防骗盾+1，进度已记下。";
+			case 322: return "【正确】告诉家人！
+反诈第一步就是别保密，
+防骗盾+1，进度已记下。";
 		}
 		return "";
 	}
@@ -435,9 +475,11 @@ class FZPlayEvents : EventHandler
 			pl.GiveInventory(GateStage(gid), 1);
 			pl.GiveInventory("ArmorBonus", 10); // 防骗盾 +10
 			FZMsgItemBase.Push(pl, GateMsgRight(gid), 300);
-			// Granted last so the "chain complete" banner (904) wins over
-			// the per-choice banner when this happens to be the third piece.
-			FZEvidenceChain.Grant(pl);
+			// 复核而不是加分：证据只由三个证据箱提供（答对不再给证据，
+			// 否则箱子会多出来、捡不起来）。这里补的是"先捡满箱子、后答
+			// 题"的顺序——那种顺序下红卡必须在答题这一刻才发得出来。
+			// 放在最后调用，让 904（证据链完整）盖住本条的"正确"提示。
+			FZEvidenceChain.Recheck(pl);
 		}
 		else
 		{
@@ -492,6 +534,73 @@ class FZPlayEvents : EventHandler
 		{
 			if (playeringame[i] && players[i].mo != null) FZMsgItemBase.Push(players[i].mo, 902, 280);
 		}
+	}
+
+	// ------------------------------------------------------- 出口把关 -----
+	//
+	// 出口开关原来谁按都能走：一路跑到最里面按下 SW1EXIT 就直接换关/结案，
+	// 幕后主谋还活得好好的也没人拦（玩家实测："不需要打赢最终 boss 直接走
+	// 到底好像也能通关"）。三章地图的出口都是 SW1EXIT 开关，所以在这里按一
+	// 条线拦一道就够了，不用改地图。
+	//
+	// 判断用的是 Exit_Normal / Exit_Secret 而不是 UDMF 里写的 11：
+	// 地图是 namespace = "ZDoomTranslated"，装载时走 xlat 翻译表，
+	// wadsrc/static/xlat/base.txt 里 `11 = USE, Exit_Normal (0)` 会把
+	// Line.special 改写成引擎内部编号（Exit_Normal = 243，Exit_Secret = 244）。
+	// 照 UDMF 的 11 去比对，这个钩子一次都不会命中——这正是 tools/fz_ctl.py
+	// 早就记过的那个坑（"matching special 52 from ZScript never fires"）。
+	//
+	// WorldLinePreActivated 是引擎里唯一能在"special 真正执行之前"否决激
+	// 活的地方（src/playsim/p_spec.cpp：shouldactivate=false 直接 return
+	// false，连 P_ExecuteSpecial 都不会调）。WorldLineActivated 只能旁观。
+	//
+	// 四种放行情形：
+	//   1) 玩家已拿到 FZStage3（主谋证据）——正常通关路径；
+	//   2) 本章地图里根本没有 Boss——bot 场景用 -nomonsters 起图，不认这条
+	//      的话所有自动化都会永久卡在出口前；
+	//   3) Boss 已经倒下（尸体还在，health <= 0）——证据掉在地上没捡也照样
+	//      算打赢，不至于因为道具被怪尸顶飞就永久卡死；
+	//   4) 不是出口线——其它开关线一概不干预。
+	//
+	// 统计是"按下那一刻"实时的，不在 WorldLoaded 里存快照。存快照看着便宜，
+	// 但装载期和"东西已经生成完"之间的先后顺序、以及运行中再刷出来的 Boss
+	// （summon、复活）都会让它立刻失真，而这处代码一帧最多跑一次，不值得省。
+	private void CountBosses(out int total, out int alive)
+	{
+		total = 0;
+		alive = 0;
+		// FZChairman replaces BaronOfHell，所以按父类名字迭代能把自制
+		// Boss 一并捞到（ThinkerIterator 认子类）。
+		let it = ThinkerIterator.Create("BaronOfHell");
+		for (let t = it.Next(); t != null; t = it.Next())
+		{
+			let b = BaronOfHell(t);
+			if (b == null) continue;
+			total++;
+			if (b.health > 0) alive++;
+		}
+	}
+
+	override void WorldLinePreActivated(WorldEvent e)
+	{
+		let mo = e.Thing;
+		if (mo == null || mo.player == null) return;
+		let ln = e.ActivatedLine;
+		if (ln == null) return;
+		if (ln.special != Exit_Normal && ln.special != Exit_Secret) return;
+		if (mo.CountInv("FZStage3") > 0) return;  // 已结案，放行
+		int total, alive;
+		CountBosses(total, alive);
+		if (total == 0) return;   // 本章没有 Boss（自动化场景）
+		if (alive == 0) return;   // Boss 已倒，放行
+		e.ShouldActivate = false;
+		FZMsgItemBase.Push(mo, 906, 220);
+		mo.A_StartSound("fz/alarm", CHAN_AUTO);
+		// test seam: 只有自动化开了 fz_bot 才打印，正常游玩不刷日志。
+		CVar dbg = CVar.FindCVar("fz_bot");
+		if (dbg != null && dbg.GetInt() == 1)
+			Console.Printf("FZDBG: exit blocked map=%s st3=%d boss=%d/%d",
+				level.mapname, mo.CountInv("FZStage3"), alive, total);
 	}
 
 	override void PlayerDied(PlayerEvent e)

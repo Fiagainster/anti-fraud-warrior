@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the distributable demo folder (and zip) from the repo.
 
-Layout of dist/fanzha-demo-v0.1:
+Layout of dist/fanzha-demo-v0.2:
   uzdoom.exe + engine pk3s/dlls   (vendor/uzdoom-5.0.3)
   freedoom1.wad                   (vendor/freedoom-0.13.0, BSD)
   fanzha-demo.pk3                 (build/, our content)
@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
-NAME = "fanzha-demo-v0.1"
+NAME = "fanzha-demo-v0.2"
 PKG = DIST / NAME
 
 ENGINE = ROOT / "vendor/uzdoom-5.0.3"
@@ -108,7 +108,7 @@ popd
 exit /b 1
 """
 
-README = """反诈战士 · 三章试玩版 v0.1
+README = """反诈战士 · 三章试玩版 v0.2
 =================================
 
 一款用 DOOM 引擎制作的反诈宣传 FPS（公安 / 社区 / 校园向）。

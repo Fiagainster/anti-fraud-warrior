@@ -8,14 +8,19 @@
 ## 交付包
 
 ```
-dist/fanzha-demo-v0.1.zip        ← 发给别人玩这个（37 MB）
-dist/fanzha-demo-v0.1/           ← 解压即玩的目录
+dist/fanzha-demo-v0.2.zip        ← 发给别人玩这个（46 MB）
+dist/fanzha-demo-v0.2/           ← 解压即玩的目录
   run.bat                        ← 双击启动
   README.txt                     ← 玩家说明（操作/流程/许可）
 ```
 
 包内自带引擎、IWAD、地图、配置与许可文件，**不依赖本仓库**。
 打包命令：`python tools\make_dist.py`（会先重生成地图与 PK3）。
+
+**交付包必须重出，否则你玩的是旧版。** 这里踩过一次真实的坑：改完代码只跑了
+测试、没跑 `make_dist.py`，`dist/` 里还是九小时前的 PK3 和地图，于是"所有修复
+都没生效"。为了避免再犯，版本号写进了窗口标题（`game/gameinfo/GAMEINFO` 的
+`STARTUPTITLE`）：**标题栏显示 v0.2 才是新构建**，看不到版本号就是旧包。
 
 ## 团队协作（开发入口）
 
@@ -59,10 +64,18 @@ run.bat                 # 双击启动
 | 第二章：装备黑市 | 游戏交易诈骗 | 微信直转？钓鱼链接？ | 黑市商人"暗影" |
 | 第三章：警服幻影 | 冒充公检法 | 安全账户？协查 APP？ | 影子会长 |
 
-选错抉择会扣警惕值并引来妖魔伏击，选对得防骗盾 +10 与一道进度。
+选错抉择会扣警惕值并引来妖魔伏击，选对得防骗盾 +10 与一道进度（HUD 上写 `抉择 x/2`）。
+**每章只有两个抉择终端**，所以分母是 2；第三件事是打死本章主谋、取走主谋证据，
+由 HUD 那行目标文字表达（`击败暗影商人` → `前往出口结案`）。
 **红卡需要两个条件同时满足**：证据碎片集齐 3 件（3 个证据箱正好凑满，得全捡），
 并且本章两道抉择都答对——只捡箱子不答题，HUD 会显示 `证据 3/3` 但**不发红卡**,
 审判门不开，同时弹出提示让你回终端重答。这样反诈题才有否决权，而不是"捡箱子就能过"。
+**证据只由证据箱提供**，答对抉择只给防骗盾和进度：三箱↔三片一一对应，
+地上不会出现"已经满了所以按不动"的死道具（以前答对也发证据，于是答对两题 +
+捡一箱就凑满，剩下两箱永远捡不起来）。
+**出口也是把门的**：本章的幕后主谋还活着时按出口开关不会有任何反应，只弹一句
+"案子还没结"——想结案必须真的打赢 Boss、取走掉落的主谋证据。Boss 一旦倒下
+（哪怕证据还没来得及捡）出口就解锁，不会因为掉落物被尸体顶飞而卡死。
 **答错不会卡关**：终端在答错后不退休，冷却 4 秒走开再靠近就重新弹菜单，
 代价是掉警惕值 + 伏击；`fz_ctl retry` 场景实测了这条路径（错一次 → 重答 → 开门）。
 章节衔接走引擎标准流程：出口 → 结算页 → 回车 → 下一章（第三章结束回标题）。
@@ -73,7 +86,7 @@ A/B 之间，否则玩家会学到"回车就对了"——已列入待办。
 ## 自动化接管（我自己玩 + 验证用的回路）
 
 ```powershell
-python tools\fz_ctl.py static        # 纯静态逻辑测试（不启动引擎，WAD+MAPINFO+ZScript 交叉校验）
+python tools\fz_ctl.py static        # 静态逻辑测试 + 几何审计（不启动引擎，全过才算过）
 python tools\fz_ctl.py check         # 只做脚本编译预检（无窗口、无弹窗）
 python tools\fz_ctl.py tour          # 第一章全程：走位/证据/两道抉择门
 python tools\fz_ctl.py gate          # 只到第一道终端并作答
@@ -82,7 +95,8 @@ python tools\fz_ctl.py esc           # ESC 主菜单开合（长按 2 秒）
 python tools\fz_ctl.py chapter FZ02  # 单章全流程（FZ01 / FZ02 / FZ03 任选）
 python tools\fz_ctl.py lock          # 反例：全答错但捡满证据 → 审判门必须打不开
 python tools\fz_ctl.py retry         # 正例：第一题答错 → 回终端重答 → 照样开门
-python tools\fz_ctl.py boss          # Boss 死亡 → 主谋证据 → 进度 3/3 → 出口
+python tools\fz_ctl.py boss          # Boss 死亡 → 主谋证据 → 抉择 2/2 → 出口
+python tools\fz_ctl.py bosslock FZ03 # 反例：Boss 活着时按出口 → 必须没反应
 python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
 ```
 
@@ -91,6 +105,12 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
 - `tools/test_game_logic.py` —— 静态测试：解析三张 WAD 的 THINGS/LINEDEFS/SECTORS、
   MAPINFO 换关链、ZScript 源码，不需要引擎就能拦住"终端编号错、门锁死、
   空气墙"这类问题（`fz_ctl static` 转调它）
+- `tools/audit_maps.py` —— 几何审计：扇区边界闭合性（不闭合 = 黑洞/能看穿）、
+  同侧叠面（闪面）、两面条高度缝缺贴图（透视带）、物件落点（卡在墙里）、
+  扇区重叠、净空。每项都对应一种玩家能看见的症状，三章都必须 0 条；
+  `fz_ctl static` 会把它一起跑，有问题就返回非零。单跑：`python tools\audit_maps.py FZ02`
+- `tools/dump_sector.py` —— 审计的配套工具：打印某个扇区的入度/出度不平衡顶点
+  和全部边，用来定位"缺口到底缺在哪个角"
 - `tools/winbot.py` —— 真实键鼠注入（SendInput 扫描码）+ 窗口截图（DPI 感知，
   按 **进程 PID** 锁定本脚本启动的窗口，绝不误操作玩家自己的窗口）
 - `tools/testhooks/bot/` —— 引擎内路线机器人（真实物理走位、卡点/实体探针、
@@ -109,12 +129,23 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
 预检用 `-errorlog` 的 batchrun 模式：脚本/MAPINFO 编译错误直接打印并退出
 （返回码 1337），**不会弹出阻塞式错误窗口**。
 
-最近一次全套结果：`static` **161/161**、`chapter FZ02` **13/13**、`chapter FZ03`
-**13/13**、`lock` **16/16**、`retry` **9/9**、`boss` **14/14**、`full` **30/30**
-（三章连跑 2 分 16 秒，两次换关 + 第三章结束序列）、`check` PASS。
+最近一次全套结果（2026-11-23，证据链与出口把关改完之后）：
+`static` **196/196 + 几何审计三章各 0 条**、`chapter FZ01/FZ02/FZ03` 各 **13/13**、
+`boss FZ03` **14/14**、`bosslock FZ03` **7/7**（Boss 活着时按出口被拦）、`check` PASS。
+旧一轮的全套：`lock` **16/16**、`retry` **9/9**、`boss` **14/14**、`full` **30/30**
+（三章连跑 2 分 16 秒，两次换关 + 第三章结束序列）。
 
 ### 自动化里踩过的坑（别重新踩）
 
+- **出口把门不能用 UDMF 里的 special 编号**：地图是 `namespace = "ZDoomTranslated"`，
+  装载时走 xlat 翻译表，`xlat/base.txt` 里 `11 = USE, Exit_Normal (0)` 会把
+  `Line.special` 改写成引擎内部编号（`Exit_Normal = 243`，`Exit_Secret = 244`）。
+  照字面的 11/52 去比，`WorldLinePreActivated` 一次都不会命中——钩子写了等于没写。
+  闸门必须比 `Exit_Normal` / `Exit_Secret` 这两个常量。
+- **否决激活只有 `WorldLinePreActivated` 一个钩子**：`WorldLineActivated` 是事后
+  通知，改不了结果；`WorldEvent.ShouldActivate = false` 会让引擎在
+  `P_ExecuteSpecial` 之前就 `return false`（`playsim/p_spec.cpp`），连门锁检查
+  都省了。
 - **终端 ednum 必须查表**：`gen_maps.py` 里 `3920 + (gate_a - 11)` 这种算术会让
   第二章生成 3930/3931（证据箱/主谋证据）、第三章 3940/3941（未注册，被引擎静默
   丢弃）——表现就是"第二关走到头要钥匙但没有""第三关没法验证"。现在用
@@ -122,6 +153,11 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
 - **换关会继承背包**：自定义令牌随 `ObtainInventory` 带到下一章，导致下一章终端
   自认"已答过"直接关闭、门要么天然开要么永远锁死。已在 `WorldLoaded` 里
   `ClearChapterState()` 清零（读档不触发，对存档安全）。
+- **一个上限道具配多个来源 = 地上留一堆捡不动的死道具**：证据上限 3，而来源曾经
+  有 3 个箱子 + 2 道答对奖励，于是"答对两题 + 捡一箱"就满了，剩下两箱永远捡不
+  起来（玩家报的"有些道具满了就捡不了了"）。现在证据只由三个箱子提供，箱子与
+  碎片一一对应，`Grant()` 只负责判定而不负责给分（答题后走 `Recheck()` 复核）。
+- **横幅文案每行最多 17 个全角字**：`DrawMessages()` 是在 4:3 画布里居中画的，一行 18 个全角字就会两头被裁（玩家看到的是断句）。所有 `MsgText` 的行都按「全角=1、ASCII=0.5」算过，别再写长句；`tools/check_charset.py` 只管字符是否在字体里，管不了宽度。
 - **合成控制台按键进不去**：`~`/Esc 的 SendInput 事件在这里到不了 SDL raw input，
   所以测试不依赖 `kill monsters`/`god`，改用引擎内 cvar 接缝。
 - **带怪跑图的三个必踩点**：弹药会打光（`fz_bot_ammo` 补弹）、怪物会把机器人顶出
@@ -146,7 +182,7 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
 | `game/` | PK3 工程：ZScript、UDMF 地图、字体、图形（含 `sprites/`、`sounds/`）、语言表 |
 | `config/` | 配置**模板**（绑定/分辨率/语言），勿手写精简版；引擎改写的是 `build/uzdoom.cfg` |
 | `assets_src/` | 美术/音频/手工地图**源文件**（LFS），含 CREDITS 登记 |
-| `tools/` | 地图/字体生成、构建、打包、测试、环境自检 |
+| `tools/` | 地图/字体生成、构建、打包、测试、几何审计、环境自检 |
 | `tools/testhooks/` | 自动化测试钩子（与正式内容隔离） |
 | `vendor/` | UZDoom/Freedoom/字体；只提交 `manifest.json`，用 `fetch_vendor.py` 导入 |
 | `source/` | 参考源码：1997 DOOM、UZDoom trunk、Freedoom、字体 |

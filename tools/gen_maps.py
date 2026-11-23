@@ -387,12 +387,23 @@ class MapBuilder:
         hall read as a place rather than as a corridor with ambitions.
 
         Every diagonal's front side faces inward (the direction is chosen so
-        the engine's right-hand rule puts the sidedef in the room)."""
+        the engine's right-hand rule puts the sidedef in the room).
+
+        The four straight runs must also be wound like room()'s: s and n run
+        counter-clockwise (x2->x1 and x1->x2), and e / w must run *against*
+        the y axis in the same sense (e: y2-c -> y1+c, w: y1+c -> y2-c).
+        Getting e/w backwards is invisible in a diff and lethal in game: the
+        one-sided wall's front sidedef ends up facing the void, so from
+        inside the hall you are looking at the *back* of the wall. The engine
+        draws nothing there - the sector reads as a black hole you can see
+        straight through, and it stays black no matter how close you walk.
+        Chapter 2's bazaar (the only chamfered room in the game) shipped with
+        exactly that for a whole revision."""
         c = cut
         self.draw_edges({"s": ("h", y1, x2 - c, x1 + c),
-                         "e": ("v", x2, y1 + c, y2 - c),
+                         "e": ("v", x2, y2 - c, y1 + c),
                          "n": ("h", y2, x1 + c, x2 - c),
-                         "w": ("v", x1, y2 - c, y1 + c)},
+                         "w": ("v", x1, y1 + c, y2 - c)},
                         sector, wall, links, opens)
         for p0, p1 in (((x2, y1 + c), (x2 - c, y1)),
                        ((x2 - c, y2), (x2, y2 - c)),
@@ -489,8 +500,20 @@ class MapBuilder:
     DR_DOOR = {0: 31, 1: 33, 2: 32, 3: 31}
 
     def door(self, x1, y1, x2, y2, lock, sec_west, sec_east, face="DOORRED"):
+        """A classic Doom door slab between two sectors.
+
+        The door sector sits at the *neighbours'* floor height, not at 0.
+        A Doom door opens by raising its ceiling to the lowest neighbouring
+        ceiling, so if its floor is wrong the doorway becomes a step: with
+        floor 0 between two rooms at floor 128 (chapter 3's upper gallery)
+        the leaf covered only the top half and the bottom 128 units were a
+        hole you could see the boss room through - the missing lower texture
+        simply had nothing to draw. Chapters 1 and 2 are all at floor 0,
+        which is exactly why this survived until the two-storey map.
+        """
         special = self.DR_DOOR[lock]
-        sec = self.sector(0, 0, "FLOOR4_8", "FLOOR4_8", 170, special=0, tag=0)
+        fh = self.sectors[sec_west][0]
+        sec = self.sector(fh, fh, "FLOOR4_8", "FLOOR4_8", 170, special=0, tag=0)
         sd = self.side(sec, "DOORTRAK")
         self.line(x1, y2, x2, y2, front=sd, blocking=True)
         sd = self.side(sec, "DOORTRAK")
@@ -607,6 +630,38 @@ class MapBuilder:
                          ("VERTEXES", verts), ("SECTORS", secs)])
 
 
+def shared_edges(rooms):
+    """（保留为诊断工具，不参与生成）列出两个房间共用但只由一侧拥有的墙。
+
+    这里踩过一次坑，记下来免得再走一遍：Doom 里两个相邻扇区之间**必须**
+    有同一条线的两个 sidedef（line 两侧都属于某个扇区），一面真正的墙则由
+    两侧各自朝内的 one-sided line 叠在同一坐标上实现。所以"共线重叠"在这里
+    不是 bug，是这类矩形房间拼法的正常产物 —— 每一侧都能看到属于自己的
+    那张墙，不会露出背面（背面才是黑洞）。
+    真正错的只有两种：绕向反了（正面朝外，ch2 的八角厅就是），以及共用同一
+    对顶点被重复画（会让 BSP 产生重复 seg、use/音效射线打两遍）。
+    """
+    out = {r["sec"]: {} for r in rooms}
+
+    def add(sec, edge, lo, hi):
+        if hi > lo:
+            out[sec].setdefault(edge, []).append((lo, hi))
+
+    for i, a in enumerate(rooms):
+        ax1, ay1, ax2, ay2 = a["rect"]
+        for b in rooms[i + 1:]:
+            bx1, by1, bx2, by2 = b["rect"]
+            if ax2 == bx1:
+                add(b["sec"], "w", max(ay1, by1), min(ay2, by2))
+            elif bx2 == ax1:
+                add(a["sec"], "w", max(ay1, by1), min(ay2, by2))
+            if ay2 == by1:
+                add(b["sec"], "s", max(ax1, bx1), min(ax2, bx2))
+            elif by2 == ay1:
+                add(a["sec"], "s", max(ax1, bx1), min(ax2, bx2))
+    return out
+
+
 def build_rooms(m, rooms, conns):
     """Draw a set of rectangular rooms plus their connections.
 
@@ -616,7 +671,11 @@ def build_rooms(m, rooms, conns):
     Each connection is declared once and lands on exactly one side: the west
     room's east edge ("v") or the south room's north edge ("h"). The other
     room is told that range is somebody else's problem, so no edge is ever
-    drawn twice and no gap can be sealed by accident.
+    drawn twice *as an opening*, and no gap can be sealed by accident.
+
+    Solid shared walls are the one place both rooms draw the same span on
+    purpose (see shared_edges()): the wall needs a front sidedef facing each
+    room, and a one-sided line only has one.
     """
     by_sec = {r["sec"]: r for r in rooms}
     links = {r["sec"]: {} for r in rooms}
@@ -891,8 +950,10 @@ def layout_pipeline(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     m.thing(560, 340, SHELLS)
     m.thing(560, 260, SHELLS)
     m.thing(900, 40, 2012)          # medikit, w2
-    m.thing(1200, 800, 2012)        # medikit, w3
-    m.thing(1300, 400, 2007)        # clip box, w4
+    m.thing(1260, 700, 2012)        # medikit, w3 (was 1200,800 = inside the pillar)
+    # (1300,400) 会插进 x=1298 那根柱子里：半径 20 的弹药盒有 18 单位埋在
+    # 石材里，玩家看到的是"捡不到、像卡在墙上的道具"。挪到房间东北角空地。
+    m.thing(1410, 445, 2007)        # clip box, w4 (was 1300,400 = inside the pillar)
     m.thing(700, 190, 2007)
     m.thing(1000, 560, 2018)        # armour, cor_b
     m.thing(2300, 560, 2007)
@@ -900,7 +961,7 @@ def layout_pipeline(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     slots = [(430, 500, w1), (620, 500, w1), (600, 280, w1),
              (860, 60, w2), (1000, 60, w2), (900, -180, w2),
              (1200, 700, w3), (1220, 900, w3),
-             (1280, 400, w4), (1480, 400, w4),
+             (1360, 400, w4), (1480, 400, w4),
              (1040, 420, cor_b), (1250, 600, cor_c)]
     for i, t in enumerate(enemies1):
         x, y, _s = slots[i % len(slots)]
@@ -1066,7 +1127,7 @@ def layout_market(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     m.thing(1290, 240, STIMPACK)
     m.thing(1740, 900, STIMPACK)
     m.thing(900, 1180, 2012)        # medikit, hall north
-    m.thing(1450, 620, 2012)        # medikit, hall east
+    m.thing(1520, 700, 2012)        # medikit, hall east (was 1450,620 = inside a crate pillar)
     m.thing(2500, 500, 2007)        # clip box, arena
     m.thing(2100, 470, 2007)        # clip box, back corridor
     m.thing(2560, 800, 2018)        # armour, arena
@@ -1075,9 +1136,11 @@ def layout_market(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     for i, t in enumerate(boss_adds):
         m.thing(2950 + i * 300, 780, t, angle=180)
 
-    slots = [(700, 1100), (900, 1100), (1400, 1100), (700, 500),
-             (1450, 600), (900, 250), (1250, 250), (1750, 900),
-             (1500, 600), (2400, 900), (2600, 450), (1950, 470)]
+    # (1400,1100) 和 (1950,470) 会让半径 30 的 Demon 有 8~10 单位埋进墙里
+    # （玩家看到的是"怪半个身子在石材里"）。两个点沿 y 各让 20 单位。
+    slots = [(700, 1100), (900, 1100), (1400, 1078), (790, 505),
+             (1450, 545), (900, 250), (1250, 250), (1750, 900),
+             (1500, 600), (2400, 900), (2600, 450), (1950, 490)]
     for i, t in enumerate(enemies1):
         x, y = slots[i % len(slots)]
         m.thing(x, y, t, angle=180)
@@ -1217,15 +1280,16 @@ def layout_precinct(palette, enemies1, enemies2, boss_adds, gate_a, gate_b):
     m.thing(700, 300, STIMPACK)
     m.thing(1340, 300, STIMPACK)
     m.thing(900, -60, 2012)         # medikit, cell block
-    m.thing(1440, 780, 2012)        # medikit, upper gallery
+    m.thing(1380, 800, 2012)        # medikit, upper gallery (was 1440,780 = inside the trial door)
     m.thing(760, 1000, 2007)        # clip box, archive
     m.thing(1300, 1030, 2018)       # armour, interrogation room
     m.thing(1600, 760, 2012)        # medikit, boss office
     m.thing(1700, 768, BARON, angle=180)
     for i, t in enumerate(boss_adds):
-        m.thing(1560 + i * 240, 820, t, angle=180)
+        # y=820 时半径 31 的 Cacodemon 正好蹭进下面那对柱子 1 单位；让到 806
+        m.thing(1560 + i * 240, 806, t, angle=180)
 
-    slots = [(500, 200), (700, 200), (900, 460), (1000, 300), (600, -120),
+    slots = [(500, 200), (700, 200), (960, 300), (1000, 300), (600, -120),
              (900, -120), (1200, 240), (1350, 400), (700, 760), (900, 780),
              (1150, 900), (1300, 900)]
     for i, t in enumerate(enemies1):
