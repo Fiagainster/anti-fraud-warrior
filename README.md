@@ -219,7 +219,10 @@ python tools\fz_ctl.py full          # 三章马拉松（战斗/过场/换关）
       接在 `MAPINFO` 与 `gameinfo.titleMusic` 上，规格见 `docs/音频设计.md` §4.1
 - [ ] 敌人配音仍是原版怪叫（`SeeSound` / `PainSound` / `DeathSound`），
       台词与录音规范见 `docs/音频设计.md` §5
-- [ ] 弹药 / 护甲 / 血包仍借 Freedoom 图（`CLIP` `SHEL` `ARM1` `MEDI` `STIM`）
+- [x] 弹药 / 护甲 / 血包 / 拾取武器 —— 2026-11-22 已换成自绘、按原版画布覆盖同名 lump
+      （`CLIP` `SHEL` `ARM1` `MEDI` `STIM` `BPAK` `BKEY`）
+- [ ] 玩家手持武器仍是 Freedoom 原版帧（`PISG*` / `SHTG*`），设计稿见
+      `docs/角色美术设计.md` §4.2；重画骨架参考 `tools/weapon_ref.py`
 - [ ] 三章地图差异化（目前共用同一套房间布局，仅换材质与敌人）；
       走 `gen_maps.py` 参数化，不换手工地图（理由见 `docs/协作/角色-地图.md`）
 - [ ] 抉择正确项轮换（当前固定 A，演示优先；正式版需打散）

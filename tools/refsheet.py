@@ -22,9 +22,10 @@ CELL = (32, 34, 40)
 TEXT = (196, 200, 208)
 ACCENT = (232, 168, 96)
 
-# Pickups / props: the things our maps borrow from Freedoom right now are in
-# BORROWED, and they get an amber label so the art pass knows what to replace.
-BORROWED = {"ARM1", "BPAK", "BKEY"}
+# Pickups / props: everything the maps show is our own art now (the pickup
+# lumps were redrawn at the vanilla canvas sizes in 2026-11-22), so nothing is
+# flagged amber any more. Keep the set for when something goes back to borrowed.
+BORROWED: set[str] = set()
 ITEMS = [
     "ARM1", "ARM2", "BPAK", "BKEY", "RKEY", "YKEY", "MEDI", "STIM",
     "SHOT", "SBOX", "CLIP", "AMMO", "SHEL", "BROK", "CELL", "CELP",
