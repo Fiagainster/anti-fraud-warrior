@@ -30,7 +30,7 @@ class FZShill : ZombieMan replaces ZombieMan
 		Speed 8;
 		PainChance 190;
 		BloodColor "50 55 45";
-		Obituary "%o 被刷手拉着一起刷单了。";
+		Obituary "%o 被刷手拉着一起刷了单，再没醒。";
 	}
 
 	States
@@ -74,6 +74,11 @@ class FZShill : ZombieMan replaces ZombieMan
 // 原 ShotgunGuy：中距连射。保持"一梭两发"的节奏。
 class FZRunner : ShotgunGuy replaces ShotgunGuy
 {
+	Default
+	{
+		Obituary "%o 的流水跑到头了。";
+	}
+
 	States
 	{
 	Spawn:
@@ -115,6 +120,11 @@ class FZRunner : ShotgunGuy replaces ShotgunGuy
 // 原 DoomImp：近战爪击 + 远程抛射，两个状态指向同一动作函数。
 class FZScalper : DoomImp replaces DoomImp
 {
+	Default
+	{
+		Obituary "%o 成了又一茬韭菜。";
+	}
+
 	States
 	{
 	Spawn:
@@ -156,6 +166,11 @@ class FZScalper : DoomImp replaces DoomImp
 // 原 Demon：只会近身冲撞，所以只给 Melee。
 class FZBroker : Demon replaces Demon
 {
+	Default
+	{
+		Obituary "%o 被中间人抽走了最后一笔。";
+	}
+
 	States
 	{
 	Spawn:
@@ -188,6 +203,11 @@ class FZBroker : Demon replaces Demon
 // 原 Cacodemon：浮空 + 远程咬击。不画腿，袍角下垂，正好对上浮空。
 class FZFakeCop : Cacodemon replaces Cacodemon
 {
+	Default
+	{
+		Obituary "%o 被「王警官」要求配合调查，再没回来。";
+	}
+
 	States
 	{
 	Spawn:
@@ -256,3 +276,4 @@ class FZChairman : BaronOfHell replaces BaronOfHell
 		Stop;
 	}
 }
+

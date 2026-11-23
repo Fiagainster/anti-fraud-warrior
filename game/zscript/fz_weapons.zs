@@ -11,6 +11,11 @@
 
 class FZPistol : Pistol replaces Pistol
 {
+	Default
+	{
+		Inventory.PickupMessage "拾取了【证据链】手枪！";
+	}
+
 	States
 	{
 	Fire:
@@ -28,6 +33,11 @@ class FZPistol : Pistol replaces Pistol
 
 class FZShotgun : Shotgun replaces Shotgun
 {
+	Default
+	{
+		Inventory.PickupMessage "拾取了【反诈喇叭】！";
+	}
+
 	States
 	{
 	Fire:
@@ -49,12 +59,15 @@ class FZShotgun : Shotgun replaces Shotgun
 }
 
 // ---------------------------------------------------------------- 弹药
+// 拾取提示写在 actor 上：Freedoom 的 DEHACKED 把 GOTxxx 全改成了英文，
+// LANGUAGE 覆盖不了，所以每个可拾取物都自带一条中文提示。
 class FZClip : Clip replaces Clip
 {
 	Default
 	{
 		Inventory.Amount 20;
 		Inventory.PickupSound "fz/ammo";
+		Inventory.PickupMessage "拾取了一盒【线索】！";
 	}
 }
 
@@ -64,6 +77,7 @@ class FZClipBox : ClipBox replaces ClipBox
 	{
 		Inventory.Amount 100;
 		Inventory.PickupSound "fz/ammo";
+		Inventory.PickupMessage "拾取了一箱【线索】！";
 	}
 }
 
@@ -73,6 +87,7 @@ class FZShell : Shell replaces Shell
 	{
 		Inventory.Amount 8;
 		Inventory.PickupSound "fz/ammo";
+		Inventory.PickupMessage "拾取了一盒【话术弹】！";
 	}
 }
 
@@ -82,6 +97,7 @@ class FZShellBox : ShellBox replaces ShellBox
 	{
 		Inventory.Amount 40;
 		Inventory.PickupSound "fz/ammo";
+		Inventory.PickupMessage "拾取了一堆【话术弹】！";
 	}
 }
 
@@ -92,6 +108,7 @@ class FZStimpack : Stimpack replaces Stimpack
 	Default
 	{
 		Inventory.PickupSound "fz/health";
+		Inventory.PickupMessage "喝了一罐【警惕能量】！";
 	}
 }
 
@@ -100,6 +117,33 @@ class FZMedikit : Medikit replaces Medikit
 	Default
 	{
 		Inventory.PickupSound "fz/health";
+		Inventory.PickupMessage "打开【防骗急救包】！警惕值回满";
+	}
+}
+
+// 防骗盾 / 证据链：原版类是 GreenArmor / ArmorBonus / RedCard，
+// 只为了改拾取提示而替换，数值与行为全部继承。
+class FZArmorBonus : ArmorBonus replaces ArmorBonus
+{
+	Default
+	{
+		Inventory.PickupMessage "防骗盾 +1";
+	}
+}
+
+class FZGreenArmor : GreenArmor replaces GreenArmor
+{
+	Default
+	{
+		Inventory.PickupMessage "拾取了【防骗盾】！话术攻击被吸收";
+	}
+}
+
+class FZRedCard : RedCard replaces RedCard
+{
+	Default
+	{
+		Inventory.PickupMessage "拾取了【证据链】！审判门已解锁";
 	}
 }
 
@@ -113,3 +157,4 @@ class FZPlayer : DoomPlayer replaces DoomPlayer
 		Player.StartItem "Shell", 16;
 	}
 }
+
