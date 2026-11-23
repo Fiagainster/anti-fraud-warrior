@@ -15,16 +15,19 @@ CREDITS.md  所有外部/AI 素材的来源与授权登记
 美术主线是**手工像素画（Pixelorama）**，Blender 只负责敌人/武器的 8 方向
 sprite 渲染。所以 `pixelorama/` 是这套流程里最先会被填满的目录。
 
-## 当前状态（2026-11-22）
+## 当前状态（2026-11-23）
 
-**上面这些子目录目前都是空的。** 现有资源全部由脚本生成（`tools/gen_*.py`）：
+子目录大部分还是空的，现有资源基本由脚本生成（`tools/gen_*.py`）：
 
 - 敌人精灵、地面拾取道具、墙地贴图、武器 underlay 均为自制；玩家手持武器按设计
   使用 IWAD 原版帧（`PISG*` / `SHTG*`）；
 - 音效为程序化合成（源是 `tools/gen_sfx.py`，成品在 `game/sounds/`，预听包在
-  `sfx_preview/`），不占 `audio/` 目录；音乐与真人配音仍待补。
+  `sfx_preview/`），不占 `audio/` 目录；
+- **`audio/music/` 已有内容**：五首配乐的乐谱 JSON（`title/ch1/ch2/ch3/boss.json`）
+  与循环点清单 `manifest.json`。音频成品在 `game/music/*.ogg`，渲染链见该目录的 README。
+  真人配音仍待补。
 
-`CREDITS.md` 目前只登记引擎 / IWAD / 字体的第三方条目。
+`CREDITS.md` 登记引擎 / IWAD / 字体的第三方条目，以及五首配乐的 AI 参与情况。
 
 手绘产物的接线步骤（sprite 命名、`States` 改动、碰撞体调整）见
 `docs/协作/角色-美术.md`——**画完不接线，游戏里看不到**。

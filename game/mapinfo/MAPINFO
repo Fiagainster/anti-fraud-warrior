@@ -1,8 +1,12 @@
 // 反诈战士 · MAPINFO
+// 音乐：game/music/*.ogg（OGG Vorbis q5，44.1k 立体声，-16 LUFS），
+// 循环点已写进 Vorbis 注释的 LOOP_START/LOOP_END（单位：采样）。
+// 曲目说明与规格见 docs/音频设计.md §4。
 gameinfo
 {
 	statusbarclass = "FZStatusBar"
 	eventhandlers = "FZPlayEvents"
+	titleMusic = "music/title.ogg"
 }
 
 doomednums
@@ -23,6 +27,9 @@ episode FZ01 { name = "反诈战士：净网行动" }
 
 // Standard Doom flow: exit switch -> intermission (stats) -> Enter -> next
 // map. FZ03 has no Next, so the run ends with the engine's end sequence.
-map FZ01 "第一章：刷单深渊" { Next = "FZ02" Sky1 = "SKY1" Music = "$MUSIC_E1M1" }
-map FZ02 "第二章：装备黑市" { Next = "FZ03" Sky1 = "SKY1" Music = "$MUSIC_E1M2" }
-map FZ03 "第三章：警服幻影" { Sky1 = "SKY1" Music = "$MUSIC_E1M3" }
+// Music 用完整路径：引擎 S_ChangeMusic -> FindMusic -> CheckNumForFullName，
+// 能直接找到 PK3 内的 music/chN.ogg；不再依赖 Freedoom 的 $MUSIC_E1M* 别名。
+// boss.ogg 暂无宿主（三章还没有 Boss 关），做 Boss 关时在该图写 Music = "music/boss.ogg"。
+map FZ01 "第一章：刷单深渊" { Next = "FZ02" Sky1 = "SKY1" Music = "music/ch1.ogg" }
+map FZ02 "第二章：装备黑市" { Next = "FZ03" Sky1 = "SKY1" Music = "music/ch2.ogg" }
+map FZ03 "第三章：警服幻影" { Sky1 = "SKY1" Music = "music/ch3.ogg" }
