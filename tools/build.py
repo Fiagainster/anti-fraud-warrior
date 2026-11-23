@@ -87,6 +87,10 @@ def main() -> None:
             z.write(GAME / "sndinfo" / "SNDINFO", "SNDINFO")
         if (GAME / "language" / "language.txt").exists():
             z.write(GAME / "language" / "language.txt", "LANGUAGE")
+        # GAMEINFO sets the window title and startup screen type; must sit at the
+        # pk3 root and is the *last* GAMEINFO the engine sees (d_main:CheckGameInfo).
+        if (GAME / "gameinfo" / "GAMEINFO").exists():
+            z.write(GAME / "gameinfo" / "GAMEINFO", "GAMEINFO")
         # textures/flats/patches are read by the engine as image namespaces,
         # music by MAPINFO's Music field. All four are optional: a checkout
         # with no custom art still builds.

@@ -29,6 +29,7 @@ intermission FZ_END
 	cast { CastClass = "FZFakeCop"  Background = "FZCASTBG" }
 	cast { CastClass = "FZChairman" Background = "FZCASTBG" }
 	image { Background = "FZENDPIC" }
+	GotoTitle { }
 }
 
 
@@ -56,4 +57,5 @@ episode FZ01 { name = "反诈战士：净网行动" }
 map FZ01 "第一章：刷单深渊" { Next = "FZ02" Sky1 = "SKY1" Music = "music/ch1.ogg" }
 map FZ02 "第二章：装备黑市" { Next = "FZ03" Sky1 = "SKY1" Music = "music/ch2.ogg" }
 map FZ03 "第三章：警服幻影" { Sky1 = "SKY1" Music = "music/ch3.ogg" }
+
 
