@@ -21,3 +21,4 @@
 - 别再回头去改 skill 的名字：`skill` 块在我们 MAPINFO 里解析得比引擎的
   `mapinfo/doomcommon.txt` 早，永远是"追加"而不是"替换"；Freedoom 的 DEHACKED
   又只认 IWAD 里的那一份。菜单这条路才是对的。
+- 光标用 `Selector "FZSELECT", -32, -6` 换成自制的放大镜（默认是骷髅 `M_CURS1`）。

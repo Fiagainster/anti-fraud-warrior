@@ -566,14 +566,18 @@ class MapBuilder:
             emit("sector", i, props)
 
         for i, (x, y, ang, typ, fl) in enumerate(self.things):
-            # Doom option bits: 1/2/4 = skill 1/2/3, 8 = ambush,
-            # 16 = multiplayer only. Without bit 16 a thing is present in
-            # every game mode, which is what 7 has always meant here.
+            # Doom option bits: 1/2/4 = easy/medium/hard, 8 = ambush,
+            # 16 = multiplayer only. UDMF has FIVE skill flags: skill1/2 are
+            # easy, skill3 medium, skill4/5 hard. Writing only three of them
+            # left skill4/skill5 at their default (false), so the 4th and
+            # 5th difficulty loaded an empty map.
             props = [("x", num(x)), ("y", num(y)), ("angle", str(ang)),
                      ("type", str(typ)),
                      ("skill1", "true" if fl & 1 else "false"),
-                     ("skill2", "true" if fl & 2 else "false"),
-                     ("skill3", "true" if fl & 4 else "false"),
+                     ("skill2", "true" if fl & 1 else "false"),
+                     ("skill3", "true" if fl & 2 else "false"),
+                     ("skill4", "true" if fl & 4 else "false"),
+                     ("skill5", "true" if fl & 4 else "false"),
                      ("single", "false" if fl & 16 else "true"),
                      ("coop", "true"), ("dm", "true")]
             if fl & 8:

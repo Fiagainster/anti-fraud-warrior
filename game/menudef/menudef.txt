@@ -46,6 +46,8 @@ LISTMENU "MainMenu"
 
 LISTMENU "FZNewGameMenu"
 {
+	// 默认光标是 Doom 的骷髅 M_CURS1；这里换成自制的放大镜（FZSELECT）
+	Selector "FZSELECT", -32, -6
 	Position 88, 56
 	LineSpacing 18
 	TextItem "见习反诈员", "i", "Startgame", 0

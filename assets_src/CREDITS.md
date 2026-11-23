@@ -19,6 +19,7 @@
 | `art/title/cover.jpg`、`art/title/ending.jpg` | 插画源 | 自制（AI 生成） | Ark Seedream 5.0 `doubao-seedream-5-0-260128` / 2026-11-23 | CC BY-NC-SA 4.0* | 是 | 标题与终章插画底稿，提示词见下 |
 | `game/graphics/TITLEPIC.png`、`FZENDPIC.png` | 标题 / 终章图 | 上述插画 + 脚本叠字 | 同左 + `tools/gen_title.py` | CC BY-NC-SA 4.0* | 是 | 中文标题、压暗、降色数由脚本完成 |
 | `game/graphics/FZCRED1.png`、`FZCRED2.png`、`FZCASTBG.png` | 轮播页 / 巡礼底图 | 自制（纯脚本绘制） | 本项目 | CC BY-NC-SA 4.0* | 无 | `tools/gen_title.py` 生成，无 AI 插画 |
+| `game/graphics/FZSELECT.png` | 难度菜单光标 | 自制（纯脚本绘制） | 本项目 | CC BY-NC-SA 4.0* | 无 | `tools/gen_menu_cursor.py` 画放大镜，16×16 放大 2 倍 |
 | `docs/剧情.md` 等 | 文案 | 自制 | 本项目 | CC BY-NC-SA 4.0* | 无 | 发布前需宣传口径审校 |
 
 \* 内容授权待单位确认，确认后请更新此表与根目录 `LICENSE`。
