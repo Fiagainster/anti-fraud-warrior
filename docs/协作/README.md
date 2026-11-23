@@ -54,6 +54,25 @@ python tools\fz_ctl.py tour     # 第一章自动化回归（预期 9/9）
 若 `github.com` 直连不稳定：给 git 配代理
 （`git config --global http.proxy http://127.0.0.1:<端口>`），或改用 `gh`（走 `api.github.com`）。下载引擎/IWAD 同理。
 
+本机实测可用的写法是**只对这一次命令挂代理**，不改全局配置：
+
+```powershell
+git -c http.proxy=http://127.0.0.1:7893 push
+```
+
+两个坑：一是环境里可能有别的代理变量（`http_proxy`/`https_proxy`）指着另一个端口，
+报错会是 `CONNECT tunnel failed, response 502`，那不是"网断了"而是走错了口；
+二是 `github.com` 和 `api.github.com` 的封锁策略不一定一致——出现过
+`api.github.com` 通、`github.com` 不通的情况，那时用 `tools/publish_api.py` 走 `gh api`。
+先分头测一遍再决定用哪条：
+
+```powershell
+curl -s -o /dev/null -w "%{http_code}\n" --max-time 15 -x http://127.0.0.1:7893 https://github.com/
+curl -s -o /dev/null -w "%{http_code}\n" --max-time 12 https://api.github.com/
+```
+
+两条都 200 才能走 git push；只有后一条通就走 `gh`。`000` 是没通。
+
 ## 沟通与节奏
 
 - 任务用 Issue 描述（模板见 `.github/ISSUE_TEMPLATE/`），PR 关联 Issue。
