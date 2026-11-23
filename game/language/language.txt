@@ -18,3 +18,23 @@ GOTBACKPACK = "拾取了【举报工具包】！举报能量上限提升！";
 
 GGOTARMOR = "防骗盾已强化！";
 GOTSUPER = "超级警惕！";
+
+[zh-Hans]
+SKILL_BABY = "见习反诈员";
+SKILL_EASY = "普通反诈员";
+SKILL_NORMAL = "老练反诈员";
+SKILL_HARD = "资深反诈员";
+SKILL_NIGHTMARE = "反诈专家";
+
+[zh]
+SKILL_BABY = "见习反诈员";
+SKILL_EASY = "普通反诈员";
+SKILL_NORMAL = "老练反诈员";
+SKILL_HARD = "资深反诈员";
+SKILL_NIGHTMARE = "反诈专家";
+
+// ---- 结算页四行（TXT_IM* 不经过 DEHACKED，LANGUAGE 能盖住）----
+TXT_IMKILLS = "净化";
+TXT_IMITEMS = "证据";
+TXT_IMSECRETS = "隐藏点";
+TXT_IMTIME = "用时";

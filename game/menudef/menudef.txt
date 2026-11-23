@@ -1,0 +1,57 @@
+// 反诈战士 · 菜单覆盖
+//
+// 只改“新游戏”这一支：主菜单的 M_NGAME 不再进引擎的 PlayerclassMenu/SkillMenu，
+// 而是进我们自己的难度菜单。5 个条目用的是引擎自己的 "Startgame" 动作，
+// 参数就是 skill 序号——这样既按选定难度开局，菜单也会被引擎自己清掉
+// （M_SetSpecialMenu 里 M_ClearMenus），不用额外收拾。
+//
+// 之所以能绕开 Freedoom 的 DEHACKED：DEHACKED 只覆盖语言表里的 SKILL_* 键，
+// 这里根本不去查那些键，文字是直接写在菜单项上的。
+
+LISTMENU "MainMenu"
+{
+	IfGame(Doom, Chex)
+	{
+		LineSpacing 16
+		StaticPatch 94, 2, "M_DOOM"
+		Position 97, 72
+		IfOption(ReadThis)
+		{
+			Position 97, 64
+		}
+	}
+
+	IfGame(Doom, Strife, Chex)
+	{
+		PatchItem "M_NGAME", "n", "FZNewGameMenu"
+		ifOption(SwapMenu)
+		{
+			PatchItem "M_LOADG", "l", "LoadGameMenu", 0
+			PatchItem "M_SAVEG", "s", "SaveGameMenu", 0
+			PatchItem "M_OPTION", "o", "OptionsMenu", 0
+		}
+		else
+		{
+			PatchItem "M_OPTION", "o", "OptionsMenu", 0
+			PatchItem "M_LOADG", "l", "LoadGameMenu", 0
+			PatchItem "M_SAVEG", "s", "SaveGameMenu", 0
+		}
+		ifOption(ReadThis)
+		{
+			PatchItem "M_RDTHIS", "r", "ReadThisMenu", 0
+		}
+		PatchItem "M_QUITG", "q", "QuitMenu", 0
+	}
+}
+
+LISTMENU "FZNewGameMenu"
+{
+	Position 88, 56
+	LineSpacing 18
+	TextItem "见习反诈员", "i", "Startgame", 0
+	TextItem "普通反诈员", "h", "Startgame", 1
+	TextItem "老练反诈员", "n", "Startgame", 2
+	TextItem "资深反诈员", "u", "Startgame", 3
+	TextItem "反诈专家", "m", "Startgame", 4
+}
+

@@ -10,8 +10,9 @@ Contents:
     sprites/*.png         (sprite lumps, e.g. FZTRA0.png for "FZTR A")
     sounds/*              (sound lumps)
 
-`game/menudef/` is intentionally not packed: the main menu is localized by
-overriding the stock M_* patches, not by replacing MENUDEF.
+`game/menudef/menudef.txt` is packed as MENUDEF: it keeps the stock main menu
+but sends "New Game" to our own skill list (the only way to get Chinese
+difficulty names past Freedoom's DEHACKED — see docs/开发日志-2026-11-23.md §8.7).
 """
 
 from __future__ import annotations
@@ -85,6 +86,8 @@ def main() -> None:
         z.write(GAME / "zscript.txt", "zscript.txt")
         if (GAME / "sndinfo" / "SNDINFO").exists():
             z.write(GAME / "sndinfo" / "SNDINFO", "SNDINFO")
+        if (GAME / "menudef" / "menudef.txt").exists():
+            z.write(GAME / "menudef" / "menudef.txt", "MENUDEF")
         if (GAME / "language" / "language.txt").exists():
             z.write(GAME / "language" / "language.txt", "LANGUAGE")
         # GAMEINFO sets the window title and startup screen type; must sit at the
@@ -121,3 +124,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
